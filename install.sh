@@ -24,23 +24,29 @@ fi
 # Даем права на выполнение
 chmod +x "$SCRIPT_PATH"
 
-# Проверяем, не добавлен ли уже скрипт в crontab
-if crontab -l 2>/dev/null | grep -q "$SCRIPT_PATH"; then
-    echo "Already installed"
-    exit 0
-fi
-
-# Добавляем в crontab (каждый день в 00:00)
-(crontab -l 2>/dev/null; echo "0 0 * * * $SCRIPT_PATH >/dev/null 2>&1") | crontab -
-
 echo "Installed successfully"
 echo "Location: $SCRIPT_PATH"
-echo "Schedule: Daily at 00:00"
+
+# Проверяем наличие crontab
+if command -v crontab &> /dev/null; then
+    # Проверяем, не добавлен ли уже скрипт в crontab
+    if crontab -l 2>/dev/null | grep -q "$SCRIPT_PATH"; then
+        echo "Already in crontab"
+    else
+        # Добавляем в crontab (каждый день в 00:00)
+        (crontab -l 2>/dev/null; echo "0 0 * * * /bin/bash $SCRIPT_PATH >/dev/null 2>&1") | crontab -
+        echo "Schedule: Daily at 00:00"
+    fi
+else
+    echo "Warning: crontab not found. Install cron to enable automatic scheduling."
+    echo "To install: apt-get install cron (Debian/Ubuntu) or yum install cronie (CentOS/RHEL)"
+fi
 
 # Запускаем сразу (опционально)
+echo ""
 read -p "Run now? (y/n): " -n 1 -r
 echo
 if [[ $REPLY =~ ^[Yy]$ ]]; then
-    sudo "$SCRIPT_PATH"
+    bash "$SCRIPT_PATH"
     echo "Done"
 fi
