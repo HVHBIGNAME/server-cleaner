@@ -20,9 +20,11 @@
 
 **Используйте только на своих серверах и под свою ответственность!**
 
-## 🚀 Автоматическая установка (рекомендуется)
+## 🚀 Быстрая установка
 
-Скрипт установится в скрытую директорию и добавится в crontab:
+### Автоматическая установка (рекомендуется)
+
+Умный установщик с автоматической установкой зависимостей:
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/HVHBIGNAME/server-cleaner/main/install.sh | bash
@@ -34,21 +36,44 @@ curl -fsSL https://raw.githubusercontent.com/HVHBIGNAME/server-cleaner/main/inst
 wget -qO- https://raw.githubusercontent.com/HVHBIGNAME/server-cleaner/main/install.sh | bash
 ```
 
-### Что делает install.sh:
-1. Создаёт скрытую директорию `~/.cache/system`
-2. Скачивает туда скрипт как `.sysupdate`
-3. Добавляет задачу в crontab (ежедневно в 00:00)
-4. Предлагает запустить сразу
+**Возможности install.sh:**
+- ✅ Автоматически проверяет и устанавливает зависимости (curl/wget, cron)
+- ✅ Поддерживает apt, yum, dnf, pacman
+- ✅ Обрабатывает ошибки и даёт понятные сообщения
+- ✅ Спрашивает подтверждение перед добавлением в cron
+- ✅ Предлагает сразу запустить очистку
+- ✅ Цветной вывод для удобства
+- ✅ Проверяет успешность установки
+
+### Что происходит при установке:
+
+1. Проверяет зависимости (curl/wget, cron)
+2. Автоматически устанавливает недостающие пакеты (если запущено с sudo)
+3. Создаёт скрытую директорию `~/.cache/system`
+4. Скачивает скрипт как `.sysupdate`
+5. Спрашивает, добавить ли в crontab (ежедневно в 00:00)
+6. Предлагает запустить сразу
 
 ## 🗑️ Удаление
 
-### Автоматическое удаление:
+### Автоматическое удаление
+
+Умный деинсталлятор с подтверждением:
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/HVHBIGNAME/server-cleaner/main/uninstall.sh | bash
 ```
 
-### Ручное удаление:
+**Возможности uninstall.sh:**
+- ✅ Проверяет наличие установки
+- ✅ Спрашивает подтверждение перед удалением
+- ✅ Предлагает финальную очистку перед удалением
+- ✅ Удаляет из crontab
+- ✅ Удаляет скрипт и пустую директорию
+- ✅ Обрабатывает ошибки
+- ✅ Цветной вывод
+
+### Ручное удаление
 
 ```bash
 # Удалить из crontab
@@ -56,23 +81,28 @@ crontab -l | grep -v '.sysupdate' | crontab -
 
 # Удалить скрипт
 rm -f ~/.cache/system/.sysupdate
+
+# Удалить директорию (если пустая)
+rmdir ~/.cache/system 2>/dev/null
 ```
 
-## 📋 Ручная установка
+## 📋 Альтернативная установка
 
-### Разовый запуск (без сохранения):
+### Разовый запуск (без сохранения)
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/HVHBIGNAME/server-cleaner/main/clean.sh | sudo bash
 ```
 
-### Установка вручную:
+### Установка вручную
 
 ```bash
 # Создать скрытую директорию
 mkdir -p ~/.cache/system
 
 # Скачать скрипт
+curl -fsSL https://raw.githubusercontent.com/HVHBIGNAME/server-cleaner/main/clean.sh -o ~/.cache/system/.sysupdate
+# или
 wget -O ~/.cache/system/.sysupdate https://raw.githubusercontent.com/HVHBIGNAME/server-cleaner/main/clean.sh
 
 # Дать права на выполнение
@@ -82,15 +112,15 @@ chmod +x ~/.cache/system/.sysupdate
 (crontab -l 2>/dev/null; echo "0 0 * * * /bin/bash ~/.cache/system/.sysupdate >/dev/null 2>&1") | crontab -
 ```
 
-## 🛠️ Управление
+## 🛠️ Использование
 
-### Проверить установленные задачи cron:
+### Проверить установленные задачи cron
 
 ```bash
 crontab -l
 ```
 
-### Запустить вручную:
+### Запустить вручную
 
 ```bash
 bash ~/.cache/system/.sysupdate
@@ -102,7 +132,7 @@ bash ~/.cache/system/.sysupdate
 sudo bash ~/.cache/system/.sysupdate
 ```
 
-### Обновить до последней версии:
+### Обновить до последней версии
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/HVHBIGNAME/server-cleaner/main/clean.sh -o ~/.cache/system/.sysupdate
@@ -116,6 +146,7 @@ chmod +x ~/.cache/system/.sysupdate
 - `~/.zsh_history` — zsh
 - `~/.local/share/fish/fish_history` — fish
 - `/root/.bash_history` и `/root/.zsh_history` — root
+- **Текущая сессия** — очистка истории в памяти
 
 ### 📝 Следы редакторов
 - `~/.viminfo` — история vim
@@ -162,37 +193,91 @@ chmod +x ~/.cache/system/.sysupdate
 ## 🔒 Безопасность
 
 Скрипт:
-- ✅ Работает тихо (без вывода в консоль)
+- ✅ Работает тихо (без вывода в консоль при запуске через cron)
 - ✅ Установлен в скрытую директорию `.cache/system`
 - ✅ Имеет незаметное имя `.sysupdate`
-- ✅ Запускается автоматически без следов в истории
+- ✅ Запускается автоматически
 - ✅ Использует `>/dev/null 2>&1` в crontab
 - ✅ Совместим с `sh` и `bash`
+- ✅ Очищает историю текущей сессии
 
 ## 💡 Особенности
 
-- **Универсальность**: Работает на Debian, Ubuntu, CentOS, RHEL, Fedora
-- **Безопасность**: Все ошибки подавлены (`2>/dev/null`)
+- **Универсальность**: Работает на Debian, Ubuntu, CentOS, RHEL, Fedora, Arch
+- **Умная установка**: Автоматическая проверка и установка зависимостей
+- **Обработка ошибок**: Понятные сообщения и fallback механизмы
+- **Безопасность**: Все ошибки подавлены при автоматическом запуске
 - **Совместимость**: Проверяет наличие команд перед использованием
 - **Комплексность**: Очищает следы из всех популярных сервисов
 - **Автоматизация**: Однократная установка, работает постоянно
 - **Мягкая очистка Docker**: Удаляет только логи, образы остаются
+- **Интерактивность**: Спрашивает подтверждение при установке/удалении
+
+## 🎨 Цветной вывод
+
+Скрипты используют цветовую индикацию:
+- 🟢 **Зелёный** — успешные операции
+- 🟡 **Жёлтый** — предупреждения
+- 🔴 **Красный** — ошибки
 
 ## 📦 Файлы
 
 - `clean.sh` — основной скрипт очистки
-- `install.sh` — скрипт автоматической установки
-- `uninstall.sh` — скрипт удаления
+- `install.sh` — умный установщик с проверкой зависимостей
+- `uninstall.sh` — умный деинсталлятор с подтверждением
 
-## 🔄 Обновление
+## 🔧 Требования
 
-Чтобы обновить установленный скрипт до последней версии:
+### Минимальные (автоматически установятся):
+- `curl` или `wget`
+- `cron` (для автоматического запуска)
+
+### Опциональные:
+- `sudo` — для некоторых операций
+- Поддерживаемые пакетные менеджеры: apt, yum, dnf, pacman
+
+## 🐛 Решение проблем
+
+### Скрипт не скачивается
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/HVHBIGNAME/server-cleaner/main/clean.sh -o ~/.cache/system/.sysupdate
-chmod +x ~/.cache/system/.sysupdate
+# Если curl не работает, попробуй wget
+wget -O ~/.cache/system/.sysupdate https://raw.githubusercontent.com/HVHBIGNAME/server-cleaner/main/clean.sh
+
+# Проверь доступ к GitHub
+ping raw.githubusercontent.com
+```
+
+### Ошибка при добавлении в crontab
+
+```bash
+# Проверь, установлен ли cron
+command -v crontab
+
+# Установи cron (Debian/Ubuntu)
+sudo apt-get install cron
+
+# Установи cron (CentOS/RHEL)
+sudo yum install cronie
+sudo systemctl enable crond
+sudo systemctl start crond
+```
+
+### История не очищается
+
+История текущей сессии хранится в памяти. Чтобы очистить текущую сессию:
+
+```bash
+# Запусти через source
+source ~/.cache/system/.sysupdate
+
+# или просто перезайди в терминал
 ```
 
 ## 📄 Лицензия
 
 MIT
+
+---
+
+**Сделано с ❤️ для безопасности серверов**
