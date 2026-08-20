@@ -92,4 +92,10 @@ sudo rm -rf /tmp/* 2>/dev/null
 sudo rm -rf /var/tmp/* 2>/dev/null
 sudo rm -rf /var/cache/apt/*.bin 2>/dev/null
 
+# === ОЧИСТКА ТЕКУЩЕЙ СЕССИИ (в конце!) ===
+# Запись пустой истории поверх текущей
+cat /dev/null > ~/.bash_history 2>/dev/null
+# Удаляем этот скрипт из истории текущей сессии
+history -d $(history 1 | awk '{print $1}') 2>/dev/null
+
 exit 0
