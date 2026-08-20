@@ -2,11 +2,13 @@
 
 # === ИСТОРИЯ КОМАНД ===
 # Bash
-cat /dev/null > ~/.bash_history
-history -c
-history -w
-sudo sh -c 'cat /dev/null > /root/.bash_history'
-sudo sh -c 'history -c'
+cat /dev/null > ~/.bash_history 2>/dev/null
+if [ -n "$BASH_VERSION" ]; then
+    history -c 2>/dev/null
+    history -w 2>/dev/null
+fi
+sudo sh -c 'cat /dev/null > /root/.bash_history' 2>/dev/null
+sudo sh -c 'history -c' 2>/dev/null
 
 # Zsh
 cat /dev/null > ~/.zsh_history 2>/dev/null
@@ -63,12 +65,10 @@ sudo truncate -s 0 /var/log/postgresql/*.log 2>/dev/null
 # Redis
 sudo truncate -s 0 /var/log/redis/*.log 2>/dev/null
 
-# === DOCKER (если установлен) ===
+# === DOCKER (только логи, без удаления образов) ===
 if command -v docker &> /dev/null; then
     # Очистка логов контейнеров
     sudo sh -c 'truncate -s 0 /var/lib/docker/containers/*/*-json.log' 2>/dev/null
-    # Очистка неиспользуемых образов и кеша
-    docker system prune -af --volumes 2>/dev/null
 fi
 
 # === AUDIT ЛОГИ ===
@@ -98,6 +98,8 @@ sudo rm -rf /var/tmp/* 2>/dev/null
 sudo rm -rf /var/cache/apt/*.bin 2>/dev/null
 
 # === ОЧИСТКА ТЕКУЩЕЙ СЕССИИ ===
-history -c
+if [ -n "$BASH_VERSION" ]; then
+    history -c 2>/dev/null
+fi
 
 exit 0
