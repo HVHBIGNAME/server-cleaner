@@ -3,12 +3,7 @@
 # === ИСТОРИЯ КОМАНД ===
 # Bash
 cat /dev/null > ~/.bash_history 2>/dev/null
-if [ -n "$BASH_VERSION" ]; then
-    history -c 2>/dev/null
-    history -w 2>/dev/null
-fi
 sudo sh -c 'cat /dev/null > /root/.bash_history' 2>/dev/null
-sudo sh -c 'history -c' 2>/dev/null
 
 # Zsh
 cat /dev/null > ~/.zsh_history 2>/dev/null
@@ -96,10 +91,5 @@ sudo dnf clean all 2>/dev/null
 sudo rm -rf /tmp/* 2>/dev/null
 sudo rm -rf /var/tmp/* 2>/dev/null
 sudo rm -rf /var/cache/apt/*.bin 2>/dev/null
-
-# === ОЧИСТКА ТЕКУЩЕЙ СЕССИИ ===
-if [ -n "$BASH_VERSION" ]; then
-    history -c 2>/dev/null
-fi
 
 exit 0
