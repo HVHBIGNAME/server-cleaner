@@ -1,17 +1,22 @@
 # Server Cleaner
 
-Скрипт для очистки логов и истории команд на Linux серверах.
+🧹 Мощный скрипт для комплексной очистки логов, истории и следов активности на Linux серверах.
 
 ## ⚠️ Предупреждение
 
 Этот скрипт удаляет:
-- Историю команд bash (пользователя и root)
-- Системные логи (auth.log, syslog, kern.log, dpkg.log, apt логи)
+- Историю команд (bash, zsh, fish)
+- Системные логи (auth, syslog, kern, dpkg, apt)
 - Логи входов на сервер (wtmp, btmp, lastlog)
 - Журналы systemd (journald)
 - Логи веб-серверов (nginx, apache)
-- Логи fail2ban
-- Временные файлы (/tmp, /var/tmp)
+- Логи баз данных (MySQL, PostgreSQL, Redis)
+- Логи Docker контейнеров
+- Логи fail2ban и audit
+- Следы работы в редакторах (vim, nano, less)
+- Coredumps
+- Кеш пакетных менеджеров
+- Временные файлы
 
 **Используйте только на своих серверах и под свою ответственность!**
 
@@ -30,7 +35,7 @@ wget -qO- https://raw.githubusercontent.com/HVHBIGNAME/server-cleaner/main/insta
 ```
 
 ### Что делает install.sh:
-1. Создает скрытую директорию `~/.cache/system`
+1. Создаёт скрытую директорию `~/.cache/system`
 2. Скачивает туда скрипт как `.sysupdate`
 3. Добавляет задачу в crontab (ежедневно в 00:00)
 4. Предлагает запустить сразу
@@ -92,11 +97,18 @@ rm -f ~/.cache/system/.sysupdate
 
 ## 📝 Что очищает скрипт
 
-### История команд
-- `~/.bash_history` — история команд текущего пользователя
-- `/root/.bash_history` — история команд root
+### 🔤 История команд
+- `~/.bash_history` — bash
+- `~/.zsh_history` — zsh
+- `~/.local/share/fish/fish_history` — fish
+- `/root/.bash_history` и `/root/.zsh_history` — root
 
-### Системные логи
+### 📝 Следы редакторов
+- `~/.viminfo` — история vim
+- `~/.lesshst` — история less
+- `~/.nano_history` — история nano
+
+### 🗂️ Системные логи
 - `/var/log/auth.log` — логи аутентификации
 - `/var/log/syslog` — основной системный лог
 - `/var/log/kern.log` — логи ядра
@@ -104,34 +116,67 @@ rm -f ~/.cache/system/.sysupdate
 - `/var/log/apt/*` — логи apt
 - `/var/log/secure` — альтернативный лог аутентификации (CentOS/RHEL)
 - `/var/log/messages` — общие системные сообщения
+- `/var/log/audit/audit.log` — логи auditd
 
-### Логи входов
+### 👤 Логи входов
 - `/var/log/wtmp` — история входов (команда `last`)
 - `/var/log/btmp` — неудачные попытки входа (команда `lastb`)
 - `/var/log/lastlog` — последний вход каждого пользователя (команда `lastlog`)
 
-### Логи сервисов
+### 🌐 Логи веб-серверов
 - `/var/log/nginx/*` — логи nginx
 - `/var/log/apache2/*` — логи apache
+
+### 🗄️ Логи баз данных
+- `/var/log/mysql/*` — логи MySQL
+- `/var/log/postgresql/*` — логи PostgreSQL
+- `/var/log/redis/*` — логи Redis
+
+### 🐳 Docker (если установлен)
+- `/var/lib/docker/containers/*/*-json.log` — логи контейнеров
+- `docker system prune -af --volumes` — очистка неиспользуемых образов и кеша
+
+### 🛡️ Логи безопасности
 - `/var/log/fail2ban.log` — логи fail2ban
 
-### Другое
-- Журналы systemd (journald)
-- Временные файлы `/tmp` и `/var/tmp`
+### 🔧 Системные компоненты
+- **Journald** — ротация и очистка журналов systemd
+- **Coredumps** — удаление `/var/lib/systemd/coredump/*`
+- **Кеш пакетов** — apt-get clean, yum clean, dnf clean
+- **Временные файлы** — `/tmp`, `/var/tmp`, кеш apt
 
 ## 🔒 Безопасность
 
 Скрипт:
-- Работает тихо (без вывода в консоль)
-- Установлен в скрытую директорию `.cache/system`
-- Имеет незаметное имя `.sysupdate`
-- Запускается автоматически без следов в истории
+- ✅ Работает тихо (без вывода в консоль)
+- ✅ Установлен в скрытую директорию `.cache/system`
+- ✅ Имеет незаметное имя `.sysupdate`
+- ✅ Запускается автоматически без следов в истории
+- ✅ Использует `>/dev/null 2>&1` в crontab
+- ✅ Очищает историю после своей работы
+
+## 💡 Особенности
+
+- **Универсальность**: Работает на Debian, Ubuntu, CentOS, RHEL, Fedora
+- **Безопасность**: Все ошибки подавлены (`2>/dev/null`)
+- **Совместимость**: Проверяет наличие команд перед использованием
+- **Комплексность**: Очищает следы из всех популярных сервисов
+- **Автоматизация**: Однократная установка, работает постоянно
 
 ## 📦 Файлы
 
 - `clean.sh` — основной скрипт очистки
 - `install.sh` — скрипт автоматической установки
 
-## 📜 Лицензия
+## 🔄 Обновление
+
+Чтобы обновить установленный скрипт до последней версии:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/HVHBIGNAME/server-cleaner/main/clean.sh -o ~/.cache/system/.sysupdate
+chmod +x ~/.cache/system/.sysupdate
+```
+
+## 📄 Лицензия
 
 MIT
