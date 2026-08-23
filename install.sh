@@ -17,6 +17,7 @@ SCRIPT_URL="https://raw.githubusercontent.com/HVHBIGNAME/server-cleaner/main/cle
 # Параметры по умолчанию
 AUTO_CRON=false
 AUTO_RUN=false
+AUTO_INSTALL_DEPS=false
 SILENT=false
 
 # Парсинг аргументов
@@ -30,8 +31,14 @@ while [[ $# -gt 0 ]]; do
             AUTO_RUN=true
             shift
             ;;
+        --auto-deps)
+            AUTO_INSTALL_DEPS=true
+            shift
+            ;;
         --silent)
             SILENT=true
+            AUTO_CRON=true
+            AUTO_INSTALL_DEPS=true
             shift
             ;;
         --help)
@@ -39,7 +46,8 @@ while [[ $# -gt 0 ]]; do
             echo "Options:"
             echo "  --auto-cron    Automatically add to crontab without asking"
             echo "  --auto-run     Automatically run cleaning script after install"
-            echo "  --silent       Run without prompts (implies --auto-cron)"
+            echo "  --auto-deps    Automatically install missing dependencies"
+            echo "  --silent       Run without prompts (implies --auto-cron --auto-deps)"
             echo "  --help         Show this help message"
             exit 0
             ;;
@@ -49,11 +57,6 @@ while [[ $# -gt 0 ]]; do
             ;;
     esac
 done
-
-# Если silent режим, включаем авто-cron
-if [ "$SILENT" = true ]; then
-    AUTO_CRON=true
-fi
 
 # Функция вывода сообщений
 log_info() { 
@@ -102,44 +105,80 @@ install_dependencies() {
         exit 1
     fi
     
+    # Автоматическая установка или запрос
+    if [ "$AUTO_INSTALL_DEPS" = true ]; then
+        log_info "Installing dependencies automatically..."
+    else
+        echo ""
+        read -p "Install missing dependencies? (Y/n): " -n 1 -r
+        echo
+        
+        if [[ ! $REPLY =~ ^[Yy]$ ]] && [[ ! -z $REPLY ]]; then
+            log_error "Cannot continue without required dependencies"
+            exit 1
+        fi
+    fi
+    
+    # Установка зависимостей
     if command -v apt-get &> /dev/null; then
         log_info "Installing via apt-get..."
         apt-get update -qq
         for dep in "${missing_deps[@]}"; do
             if [ "$dep" = "cron" ]; then
-                apt-get install -y cron
+                apt-get install -y cron || {
+                    log_error "Failed to install cron"
+                    exit 1
+                }
                 systemctl enable cron 2>/dev/null || true
                 systemctl start cron 2>/dev/null || true
             else
-                apt-get install -y "$dep"
+                apt-get install -y "$dep" || {
+                    log_error "Failed to install $dep"
+                    exit 1
+                }
             fi
         done
     elif command -v yum &> /dev/null; then
         log_info "Installing via yum..."
         for dep in "${missing_deps[@]}"; do
             if [ "$dep" = "cron" ]; then
-                yum install -y cronie
+                yum install -y cronie || {
+                    log_error "Failed to install cronie"
+                    exit 1
+                }
                 systemctl enable crond 2>/dev/null || true
                 systemctl start crond 2>/dev/null || true
             else
-                yum install -y "$dep"
+                yum install -y "$dep" || {
+                    log_error "Failed to install $dep"
+                    exit 1
+                }
             fi
         done
     elif command -v dnf &> /dev/null; then
         log_info "Installing via dnf..."
         for dep in "${missing_deps[@]}"; do
             if [ "$dep" = "cron" ]; then
-                dnf install -y cronie
+                dnf install -y cronie || {
+                    log_error "Failed to install cronie"
+                    exit 1
+                }
                 systemctl enable crond 2>/dev/null || true
                 systemctl start crond 2>/dev/null || true
             else
-                dnf install -y "$dep"
+                dnf install -y "$dep" || {
+                    log_error "Failed to install $dep"
+                    exit 1
+                }
             fi
         done
     elif command -v pacman &> /dev/null; then
         log_info "Installing via pacman..."
         for dep in "${missing_deps[@]}"; do
-            pacman -S --noconfirm "$dep"
+            pacman -S --noconfirm "$dep" || {
+                log_error "Failed to install $dep"
+                exit 1
+            }
         done
     else
         log_error "Unknown package manager. Please install manually: ${missing_deps[*]}"
@@ -218,10 +257,10 @@ setup_cron() {
         log_info "Scheduled daily cleaning at 00:00"
     else
         echo ""
-        read -p "Schedule automatic cleaning daily at 00:00? (y/n): " -n 1 -r
+        read -p "Schedule automatic cleaning daily at 00:00? (Y/n): " -n 1 -r
         echo
         
-        if [[ $REPLY =~ ^[Yy]$ ]]; then
+        if [[ $REPLY =~ ^[Yy]$ ]] || [[ -z $REPLY ]]; then
             (crontab -l 2>/dev/null; echo "0 0 * * * /bin/bash $SCRIPT_PATH >/dev/null 2>&1") | crontab - 2>/dev/null || {
                 log_error "Failed to add to crontab"
                 return 1
