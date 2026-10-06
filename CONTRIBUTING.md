@@ -1,6 +1,6 @@
 # Contributing
 
-Keep `clean.sh` standalone and compatible with POSIX `sh`. Expose user actions as flags
+Keep `server-cleaner.sh` standalone and compatible with POSIX `sh`. Expose user actions as flags
 of the installed `server-cleaner` command. New cleanup actions
 must have a read-only plan, explicit execution, actionable failures and an isolated regression test.
 
@@ -30,18 +30,18 @@ claiming a new natively tested platform.
 
 ## Runtime bundle integrity
 
-After editing `clean.sh`, regenerate `SHA256SUMS`:
+After editing `server-cleaner.sh`, regenerate `SHA256SUMS`:
 
 ```sh
-sha256sum clean.sh > SHA256SUMS
+sha256sum server-cleaner.sh > SHA256SUMS
 # macOS alternative:
-shasum -a 256 clean.sh > SHA256SUMS
+shasum -a 256 server-cleaner.sh > SHA256SUMS
 ```
 
 Use LF line endings. `--install` verifies exact contents, shell syntax and the managed-file
-marker before replacing the program. Keep exactly one `clean.sh` entry; the integrity test
+marker before replacing the program. Keep exactly one `server-cleaner.sh` entry; the integrity test
 checks it against the current source. Test offline installation with
-`sh clean.sh --install --from "$PWD" --prefix /absolute/test/prefix`.
+`sh server-cleaner.sh --install --from "$PWD" --prefix /absolute/test/prefix`.
 
 ## Report graphics
 

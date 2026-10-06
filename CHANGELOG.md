@@ -7,6 +7,7 @@
 - Replaced unconditional wiping with a plan-first maintenance CLI and native cleanup policies.
 - Switched to a single POSIX `sh` entry point with `--install`, `--update`, `--uninstall`,
   `--autostart`, `--agents` and `--help` flags.
+- The entry point is `server-cleaner.sh`, with a distinct download URL from the v1 wiping script.
 - The only installed command is `PREFIX/bin/server-cleaner`, replacing the hidden v1 path.
 - Active logs, audit / login databases and Docker log files are no longer manually truncated.
 - Temporary files and core dumps use OS tmpfiles age rules; text logs use normal rotation.
@@ -30,8 +31,8 @@
 
 ### Migration
 
-Run `sh clean.sh --install --migrate-legacy --yes` as the original installing account.
+Run `sh server-cleaner.sh --install --migrate-legacy --yes` as the original installing account.
 This removes the recognized v1 script and its exact original cron line. Custom cron commands
 must be reviewed manually. Add `--autostart daily` explicitly to schedule v2 maintenance.
 
-Do not source `clean.sh`: a child process cannot clear an interactive parent's in-memory history.
+Do not source `server-cleaner.sh`: a child process cannot clear an interactive parent's in-memory history.

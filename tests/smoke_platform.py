@@ -11,7 +11,7 @@ def main():
     parser.add_argument("--expect-manager", required=True)
     parser.add_argument("--apply", action="store_true")
     args = parser.parse_args()
-    command = ["/bin/sh", str(Path(__file__).resolve().parents[1] / "clean.sh"), "--only", "packages", "--json"]
+    command = ["/bin/sh", str(Path(__file__).resolve().parents[1] / "server-cleaner.sh"), "--only", "packages", "--json"]
     if args.apply:
         command.extend(["--apply", "--yes"])
     result = subprocess.run(command, text=True, capture_output=True, check=False, timeout=120)

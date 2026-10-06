@@ -8,7 +8,7 @@
 ## Установка
 
 ```sh
-curl -fsSL https://raw.githubusercontent.com/HVHBIGNAME/server-cleaner/main/clean.sh | sh -s -- --install
+curl -fsSL https://raw.githubusercontent.com/HVHBIGNAME/server-cleaner/main/server-cleaner.sh | sh -s -- --install
 ```
 
 Путь: `~/.local/bin/server-cleaner`, для root — `/usr/local/bin/server-cleaner`.

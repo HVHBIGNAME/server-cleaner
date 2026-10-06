@@ -10,7 +10,7 @@ from pathlib import Path
 
 REPO = Path(__file__).resolve().parents[1]
 SHELL = os.environ.get("SHELL_UNDER_TEST", "/bin/sh")
-RUNTIME_FILES = ("clean.sh",)
+RUNTIME_FILES = ("server-cleaner.sh",)
 
 
 class ShellTestCase(unittest.TestCase):
@@ -100,7 +100,7 @@ else
 fi
 ''')
 
-    def run_script(self, script="clean.sh", *args, input_text=None, timeout=20):
+    def run_script(self, script="server-cleaner.sh", *args, input_text=None, timeout=20):
         path = Path(script)
         if not path.is_absolute():
             path = REPO / path
@@ -143,4 +143,4 @@ fi
     def install(self, *args, source=None):
         if source is None:
             source = self.bundle()
-        return self.run_script("clean.sh", "--install", "--from", source, "--prefix", self.prefix, *args)
+        return self.run_script("server-cleaner.sh", "--install", "--from", source, "--prefix", self.prefix, *args)

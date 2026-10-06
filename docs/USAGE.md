@@ -7,16 +7,16 @@
 
 ```sh
 # Установить из checkout без доступа к сети
-sh clean.sh --install --from "$PWD"
+sh server-cleaner.sh --install --from "$PWD"
 
 # Установить в свой каталог
-sh clean.sh --install --from "$PWD" --prefix "$HOME/tools"
+sh server-cleaner.sh --install --from "$PWD" --prefix "$HOME/tools"
 
 # Системная установка
-sudo sh clean.sh --install --system
+sudo sh server-cleaner.sh --install --system
 
 # Установить и сразу настроить ежедневную очистку
-sh clean.sh --install --autostart daily --at 04:00 --only packages,journal --keep-days 30
+sh server-cleaner.sh --install --autostart daily --at 04:00 --only packages,journal --keep-days 30
 
 # Обновить уже установленную программу
 server-cleaner --update
@@ -29,8 +29,8 @@ server-cleaner --update
 
 Проверяются SHA-256, синтаксис shell и маркер программы; замена подготовленного файла
 выполняется переименованием. При ошибке скачивания существующая программа сохраняется.
-`--from DIR` использует локальные `clean.sh` и `SHA256SUMS`. Для фиксированной версии
-скачайте `clean.sh` из нужного коммита и передайте тот же полный SHA через `--ref`.
+`--from DIR` использует локальные `server-cleaner.sh` и `SHA256SUMS`. Для фиксированной версии
+скачайте `server-cleaner.sh` из нужного коммита и передайте тот же полный SHA через `--ref`.
 
 Установка сама по себе не запускает очистку. Для выполнения сразу добавьте `--apply`
 и, если нужна автоматическая работа без вопросов, `--yes`.
@@ -114,8 +114,8 @@ Void/Gentoo/Solus имеют тесты адаптеров. OpenBSD/NetBSD — �
 
 ```sh
 server-cleaner --uninstall --yes
-sh clean.sh --uninstall --prefix "$HOME/tools" --yes  # Если команда уже удалена
-sh clean.sh --install --migrate-legacy --yes           # Переход с v1
+sh server-cleaner.sh --uninstall --prefix "$HOME/tools" --yes  # Если команда уже удалена
+sh server-cleaner.sh --install --migrate-legacy --yes           # Переход с v1
 ```
 
 Удаление отключает свой автозапуск и удаляет программу; очистка системы не запускается.

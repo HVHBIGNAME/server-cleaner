@@ -8,7 +8,7 @@ class BundleTests(unittest.TestCase):
         root = Path(__file__).resolve().parents[1]
         entries = [line.split() for line in (root / "SHA256SUMS").read_text().splitlines()]
         self.assertEqual(len(entries), 1)
-        self.assertEqual({entry[1] for entry in entries}, {"clean.sh"})
+        self.assertEqual({entry[1] for entry in entries}, {"server-cleaner.sh"})
         for expected, name in entries:
             with self.subTest(name=name):
                 contents = (root / name).read_bytes()

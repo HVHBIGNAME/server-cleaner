@@ -29,7 +29,7 @@ class InstallTests(ShellTestCase):
         self.assertEqual(self.install(source=source).returncode, 0)
         installed = self.prefix / "bin" / "server-cleaner"
         before = installed.read_bytes()
-        (source / "clean.sh").write_text("#!/bin/sh\necho corrupt\n")
+        (source / "server-cleaner.sh").write_text("#!/bin/sh\necho corrupt\n")
         result = self.install(source=source)
         self.assertNotEqual(result.returncode, 0)
         self.assertIn("SHA-256", result.stderr)
@@ -38,7 +38,7 @@ class InstallTests(ShellTestCase):
 
     def test_bad_syntax_is_rejected_even_if_hash_matches(self):
         source = self.bundle()
-        (source / "clean.sh").write_text("#!/bin/sh\nif then\n")
+        (source / "server-cleaner.sh").write_text("#!/bin/sh\nif then\n")
         self.write_checksums(source)
         result = self.install(source=source)
         self.assertNotEqual(result.returncode, 0)
@@ -57,7 +57,7 @@ class InstallTests(ShellTestCase):
 
     def test_missing_download_never_creates_installation(self):
         source = self.bundle()
-        (source / "clean.sh").unlink()
+        (source / "server-cleaner.sh").unlink()
         result = self.install(source=source)
         self.assertNotEqual(result.returncode, 0)
         self.assertFalse(self.prefix.exists())
@@ -88,7 +88,7 @@ class InstallTests(ShellTestCase):
         keep = self.prefix / "bin" / "other-command"
         keep.write_text("keep")
         for _ in range(2):
-            result = self.run_script("clean.sh", "--uninstall", "--prefix", self.prefix, "--yes")
+            result = self.run_script("server-cleaner.sh", "--uninstall", "--prefix", self.prefix, "--yes")
             self.assertEqual(result.returncode, 0, result.stderr)
         self.assertTrue(keep.exists())
         self.assertFalse((self.prefix / "bin" / "server-cleaner").exists())
@@ -101,7 +101,7 @@ class InstallTests(ShellTestCase):
 
     def test_uninstall_without_tty_requires_yes(self):
         self.assertEqual(self.install().returncode, 0)
-        result = self.run_script("clean.sh", "--uninstall", "--prefix", self.prefix)
+        result = self.run_script("server-cleaner.sh", "--uninstall", "--prefix", self.prefix)
         self.assertNotEqual(result.returncode, 0)
         self.assertTrue((self.prefix / "bin" / "server-cleaner").exists())
 
@@ -118,7 +118,7 @@ class InstallTests(ShellTestCase):
         self.assertTrue(contents.startswith(unrelated))
         self.assertEqual(contents.count("# BEGIN server-cleaner"), 1)
         self.assertIn(f"/bin/sh '{self.prefix}/bin/server-cleaner' --apply --yes", contents)
-        result = self.run_script("clean.sh", "--uninstall", "--prefix", self.prefix, "--yes")
+        result = self.run_script("server-cleaner.sh", "--uninstall", "--prefix", self.prefix, "--yes")
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertEqual(self.cron_store.read_text(), unrelated)
 
@@ -149,7 +149,7 @@ class InstallTests(ShellTestCase):
         self.cron()
         self.assertEqual(self.install("--autostart", "daily").returncode, 0)
         self.env["CRON_WRITE_FAIL"] = "1"
-        result = self.run_script("clean.sh", "--uninstall", "--prefix", self.prefix, "--yes")
+        result = self.run_script("server-cleaner.sh", "--uninstall", "--prefix", self.prefix, "--yes")
         self.assertNotEqual(result.returncode, 0)
         self.assertTrue((self.prefix / "bin" / "server-cleaner").exists())
 
@@ -161,7 +161,7 @@ class InstallTests(ShellTestCase):
         result = self.install("--autostart", "daily")
         self.assertNotEqual(result.returncode, 0)
         self.assertEqual(self.cron_store.read_text(), original)
-        result = self.run_script("clean.sh", "--uninstall", "--prefix", self.prefix, "--yes")
+        result = self.run_script("server-cleaner.sh", "--uninstall", "--prefix", self.prefix, "--yes")
         self.assertNotEqual(result.returncode, 0)
         self.assertEqual(self.cron_store.read_text(), original)
 
@@ -197,7 +197,7 @@ class InstallTests(ShellTestCase):
         source = self.bundle()
         result = self.run_script(
             self.bin / "sh", "-s", "--", "--install", "--from", source, "--prefix", self.prefix,
-            input_text=(REPO / "clean.sh").read_text(),
+            input_text=(REPO / "server-cleaner.sh").read_text(),
         )
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertTrue((self.prefix / "bin" / "server-cleaner").is_file())
@@ -206,7 +206,7 @@ class InstallTests(ShellTestCase):
         source = self.bundle()
         for prefix in ("relative", "/", "/tmp/..", "/tmp/a%name", "/tmp/a\nname"):
             with self.subTest(prefix=prefix):
-                result = self.run_script("clean.sh", "--install", "--from", source, "--prefix", prefix)
+                result = self.run_script("server-cleaner.sh", "--install", "--from", source, "--prefix", prefix)
                 self.assertNotEqual(result.returncode, 0)
 
     def test_remote_install_uses_the_selected_ref(self):
@@ -224,12 +224,12 @@ done
 printf '%s\n' "$url" >> "$CALL_LOG"
 cp "$DOWNLOAD_SOURCE/${url##*/}" "$destination"
 ''')
-        result = self.run_script("clean.sh", "--install", "--prefix", self.prefix, "--ref", "v2-test")
+        result = self.run_script("server-cleaner.sh", "--install", "--prefix", self.prefix, "--ref", "v2-test")
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertEqual(len(self.calls()), 2)
         for call in self.calls():
             self.assertIn("/server-cleaner/v2-test/", call[0])
-        self.assertEqual((self.prefix / "bin" / "server-cleaner").read_bytes(), (source / "clean.sh").read_bytes())
+        self.assertEqual((self.prefix / "bin" / "server-cleaner").read_bytes(), (source / "server-cleaner.sh").read_bytes())
 
     def test_wget_works_without_curl(self):
         source = self.bundle()
@@ -245,7 +245,7 @@ while [ "$#" -gt 0 ]; do
 done
 cp "$DOWNLOAD_SOURCE/${url##*/}" "$destination"
 ''')
-        result = self.run_script("clean.sh", "--install", "--prefix", self.prefix)
+        result = self.run_script("server-cleaner.sh", "--install", "--prefix", self.prefix)
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertTrue((self.prefix / "bin" / "server-cleaner").is_file())
 
@@ -254,7 +254,7 @@ cp "$DOWNLOAD_SOURCE/${url##*/}" "$destination"
         installed = self.prefix / "bin" / "server-cleaner"
         before = installed.read_bytes()
         self.command("curl", "exit 22")
-        result = self.run_script("clean.sh", "--install", "--prefix", self.prefix)
+        result = self.run_script("server-cleaner.sh", "--install", "--prefix", self.prefix)
         self.assertNotEqual(result.returncode, 0)
         self.assertIn("Download failed", result.stderr)
         self.assertEqual(installed.read_bytes(), before)
@@ -279,7 +279,7 @@ fi
         self.assertEqual(self.cron_store.read_text(), "0 1 * * * original-job\n5 2 * * * concurrent-job\n")
 
     def test_agents_report_a_missing_query_tool(self):
-        result = self.run_script("clean.sh", "--agents")
+        result = self.run_script("server-cleaner.sh", "--agents")
         self.assertEqual(result.returncode, 3)
         self.assertIn("No supported package database", result.stderr)
 
@@ -293,17 +293,17 @@ esac
         self.native("apt-get")
         self.native("systemctl")
         self.native("pkill")
-        result = self.run_script("clean.sh", "--agents")
+        result = self.run_script("server-cleaner.sh", "--agents")
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertIn("qemu-guest-agent", result.stdout)
         self.assertIn("Found / Найдено: 2", result.stdout)
         self.assertEqual(self.calls(), [])
-        self.assertEqual(self.run_script("clean.sh", "--agents", "--force").returncode, 2)
+        self.assertEqual(self.run_script("server-cleaner.sh", "--agents", "--force").returncode, 2)
 
     def test_help_describes_the_unified_interface(self):
         for language in ("en", "ru"):
             with self.subTest(language=language):
-                result = self.run_script("clean.sh", "--lang", language, "--help")
+                result = self.run_script("server-cleaner.sh", "--lang", language, "--help")
                 self.assertEqual(result.returncode, 0)
                 for option in ("--install", "--update", "--uninstall", "--autostart", "--at", "--only", "--keep-days", "--agents", "--help"):
                     self.assertIn(option, result.stdout)
@@ -324,7 +324,7 @@ esac
         ]
         for args in invalid:
             with self.subTest(args=args):
-                result = self.run_script("clean.sh", *args)
+                result = self.run_script("server-cleaner.sh", *args)
                 self.assertEqual(result.returncode, 2, result.stderr)
                 self.assertFalse(self.prefix.exists())
                 self.assertFalse(self.cron_store.exists())
@@ -374,7 +374,7 @@ esac
 
     def test_autostart_requires_an_installed_program(self):
         self.cron()
-        result = self.run_script("clean.sh", "--prefix", self.prefix, "--autostart", "daily")
+        result = self.run_script("server-cleaner.sh", "--prefix", self.prefix, "--autostart", "daily")
         self.assertNotEqual(result.returncode, 0)
         self.assertFalse(self.cron_store.exists())
 

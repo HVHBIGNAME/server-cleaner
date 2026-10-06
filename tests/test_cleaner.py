@@ -9,7 +9,7 @@ from helpers import REPO, SHELL, ShellTestCase
 
 class CleanerTests(ShellTestCase):
     def report(self, *args, code=0):
-        result = self.run_script("clean.sh", "--json", *args)
+        result = self.run_script("server-cleaner.sh", "--json", *args)
         self.assertEqual(result.returncode, code, result.stderr + result.stdout)
         self.assertNotIn("\x1b", result.stdout)
         return json.loads(result.stdout)
@@ -42,35 +42,35 @@ class CleanerTests(ShellTestCase):
         ]
         for args in invalid:
             with self.subTest(args=args):
-                result = self.run_script("clean.sh", *args)
+                result = self.run_script("server-cleaner.sh", *args)
                 self.assertEqual(result.returncode, 2, result.stderr)
                 self.assertFalse(self.state.exists())
 
     def test_unknown_operating_system_fails_without_changes(self):
         self.env["TEST_OS"] = "MSYS_NT-10.0"
-        result = self.run_script("clean.sh", "--apply", "--yes")
+        result = self.run_script("server-cleaner.sh", "--apply", "--yes")
         self.assertEqual(result.returncode, 3)
         self.assertIn("WSL", result.stderr)
         self.assertFalse(self.state.exists())
 
     def test_help_and_version_work_without_a_supported_os(self):
         self.env["TEST_OS"] = "Windows"
-        self.assertEqual(self.run_script("clean.sh", "--version").stdout.strip(), "2.0.0")
-        result = self.run_script("clean.sh", "--lang", "ru", "--help")
+        self.assertEqual(self.run_script("server-cleaner.sh", "--version").stdout.strip(), "2.0.0")
+        result = self.run_script("server-cleaner.sh", "--lang", "ru", "--help")
         self.assertEqual(result.returncode, 0)
         self.assertIn("Использование", result.stdout)
 
     def test_locale_can_be_overridden(self):
         self.env["LC_ALL"] = "ru_RU.UTF-8"
-        result = self.run_script("clean.sh", "--only", "packages")
+        result = self.run_script("server-cleaner.sh", "--only", "packages")
         self.assertIn("Предварительный", result.stdout)
-        result = self.run_script("clean.sh", "--lang", "en", "--only", "packages")
+        result = self.run_script("server-cleaner.sh", "--lang", "en", "--only", "packages")
         self.assertIn("Preview:", result.stdout)
 
     def test_apply_requires_explicit_confirmation_without_a_terminal(self):
         self.native("apt-get")
         self.as_root()
-        result = self.run_script("clean.sh", "--apply", "--only", "packages")
+        result = self.run_script("server-cleaner.sh", "--apply", "--only", "packages")
         self.assertEqual(result.returncode, 2)
         self.assertEqual(self.calls(), [])
         self.assertFalse(self.state.exists())
@@ -93,7 +93,7 @@ class CleanerTests(ShellTestCase):
         self.as_root()
         self.native("apt-get", 42)
         self.native("journalctl")
-        result = self.run_script("clean.sh", "--json", "--apply", "--yes", "--only", "packages,journal")
+        result = self.run_script("server-cleaner.sh", "--json", "--apply", "--yes", "--only", "packages,journal")
         report = json.loads(result.stdout)
         self.assertEqual(result.returncode, 1)
         self.assertEqual(report["summary"]["failed"], 1)
@@ -259,7 +259,7 @@ class CleanerTests(ShellTestCase):
         lock = self.state / "server-cleaner" / "lock"
         lock.mkdir(parents=True, mode=0o700)
         (lock / "pid").write_text(str(os.getpid()))
-        result = self.run_script("clean.sh", "--only", "packages", "--apply", "--yes")
+        result = self.run_script("server-cleaner.sh", "--only", "packages", "--apply", "--yes")
         self.assertEqual(result.returncode, 75, result.stderr)
         self.assertEqual(self.calls(), [])
         self.assertTrue(lock.exists())
@@ -268,7 +268,7 @@ class CleanerTests(ShellTestCase):
         self.as_root()
         self.command("apt-get", 'printf "started\\n" > "$CALL_LOG"; sleep 30')
         process = subprocess.Popen(
-            [SHELL, str(REPO / "clean.sh"), "--only", "packages", "--apply", "--yes"],
+            [SHELL, str(REPO / "server-cleaner.sh"), "--only", "packages", "--apply", "--yes"],
             cwd=self.root, env=self.env, stdin=subprocess.DEVNULL,
             stdout=subprocess.PIPE, stderr=subprocess.PIPE, start_new_session=True,
         )

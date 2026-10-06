@@ -115,7 +115,7 @@ Server Cleaner — обслуживание Linux, macOS и BSD
   --at ЧЧ:ММ         Время daily / weekly (по умолчанию 03:17; weekly — воскресенье)
   --prefix КАТАЛОГ   Префикс установки (по умолчанию ~/.local или /usr/local для root)
   --system           Префикс /usr/local; нужны права root
-  --from КАТАЛОГ     Установка из локальных clean.sh + SHA256SUMS
+  --from КАТАЛОГ     Установка из локальных server-cleaner.sh + SHA256SUMS
   --ref REF          Git commit / tag / branch для скачивания (по умолчанию main)
   --migrate-legacy   При --install удалить распознанную установку v1
   --agents           Показать установленные гостевые / облачные пакеты (только чтение)
@@ -158,7 +158,7 @@ Installation and automation:
   --at HH:MM         Time for daily / weekly (default 03:17; weekly runs on Sunday)
   --prefix DIR       Install prefix (default ~/.local, or /usr/local for root)
   --system           Use /usr/local; requires root
-  --from DIR         Offline installation from clean.sh + SHA256SUMS
+  --from DIR         Offline installation from server-cleaner.sh + SHA256SUMS
   --ref REF          Git commit / tag / branch to download (default main)
   --migrate-legacy   With --install, remove a recognized v1 installation
   --agents           Read-only guest / cloud package inventory
@@ -676,14 +676,14 @@ file_sha256() {
 }
 
 verify_download() {
-    expected_hash=$(awk '$2 == "clean.sh" && NF == 2 {print $1; found++} END {if(found != 1) exit 1}' "$MANAGE_DIR/SHA256SUMS") ||
+    expected_hash=$(awk '$2 == "server-cleaner.sh" && NF == 2 {print $1; found++} END {if(found != 1) exit 1}' "$MANAGE_DIR/SHA256SUMS") ||
         management_error 'Некорректный SHA256SUMS.' 'Invalid SHA256SUMS entry.'
     case $expected_hash in ''|*[!0-9a-f]*) fail 'Invalid SHA-256.' ;; esac
     [ "${#expected_hash}" -eq 64 ] || fail 'Invalid SHA-256 length.'
-    actual_hash=$(file_sha256 "$MANAGE_DIR/clean.sh")
+    actual_hash=$(file_sha256 "$MANAGE_DIR/server-cleaner.sh")
     [ "$expected_hash" = "$actual_hash" ] || management_error 'Проверка SHA-256 не пройдена.' 'SHA-256 mismatch.'
-    sh -n "$MANAGE_DIR/clean.sh" || management_error 'Ошибка синтаксиса clean.sh.' 'Shell syntax check failed: clean.sh.'
-    grep -Fqx '# server-cleaner:managed:clean' "$MANAGE_DIR/clean.sh" || fail 'Invalid installation bundle.'
+    sh -n "$MANAGE_DIR/server-cleaner.sh" || management_error 'Ошибка синтаксиса server-cleaner.sh.' 'Shell syntax check failed: server-cleaner.sh.'
+    grep -Fqx '# server-cleaner:managed:clean' "$MANAGE_DIR/server-cleaner.sh" || fail 'Invalid installation bundle.'
 }
 
 remove_old_helpers() {
@@ -820,7 +820,7 @@ remove_legacy() {
 install_program() {
     BASE_URL=https://raw.githubusercontent.com/HVHBIGNAME/server-cleaner/$REF
     download_file SHA256SUMS
-    download_file clean.sh
+    download_file server-cleaner.sh
     verify_download
     mkdir -p "$PREFIX"
     installation_paths
@@ -830,7 +830,7 @@ install_program() {
     mkdir "$INSTALL_LOCK" 2>/dev/null || fail "$(text lock "$INSTALL_LOCK")" 75
     INSTALL_LOCKED=1
     BIN_STAGE=$(mktemp "$BINDIR/.server-cleaner.XXXXXXXX")
-    cp "$MANAGE_DIR/clean.sh" "$BIN_STAGE"
+    cp "$MANAGE_DIR/server-cleaner.sh" "$BIN_STAGE"
     chmod 755 "$BIN_STAGE"
     mv -f "$BIN_STAGE" "$PROGRAM"
     BIN_STAGE=''
