@@ -10,7 +10,7 @@ from pathlib import Path
 
 REPO = Path(__file__).resolve().parents[1]
 SHELL = os.environ.get("SHELL_UNDER_TEST", "/bin/sh")
-RUNTIME_FILES = ("clean.sh", "uninstall.sh", "anti-monitoring.sh")
+RUNTIME_FILES = ("clean.sh",)
 
 
 class ShellTestCase(unittest.TestCase):
@@ -143,4 +143,4 @@ fi
     def install(self, *args, source=None):
         if source is None:
             source = self.bundle()
-        return self.run_script("install.sh", "--from", source, "--prefix", self.prefix, *args)
+        return self.run_script("clean.sh", "--install", "--from", source, "--prefix", self.prefix, *args)

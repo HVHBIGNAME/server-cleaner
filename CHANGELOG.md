@@ -5,11 +5,12 @@
 ### Changed
 
 - Replaced unconditional wiping with a plan-first maintenance CLI and native cleanup policies.
-- Switched all entry points from Bash-specific syntax to POSIX `sh`.
-- Installed commands now have descriptive names in `PREFIX/bin`, replacing the hidden v1 path.
+- Switched to a single POSIX `sh` entry point with `--install`, `--update`, `--uninstall`,
+  `--autostart`, `--agents` and `--help` flags.
+- The only installed command is `PREFIX/bin/server-cleaner`, replacing the hidden v1 path.
 - Active logs, audit / login databases and Docker log files are no longer manually truncated.
 - Temporary files and core dumps use OS tmpfiles age rules; text logs use normal rotation.
-- `anti-monitoring.sh` now inventories guest / cloud packages instead of removing integrations.
+- `--agents` inventories guest / cloud packages instead of removing integrations.
 - Installer `--silent` no longer enables cron or dependency installation.
 
 ### Added
@@ -21,14 +22,16 @@
 - Private run locks, permission preflight, path checks and nonzero failure statuses.
 - Verified downloads, local installation, pinned refs, staged file replacement and explicit v1 migration.
 - Idempotent, marked cron configuration with concurrent-change checks and reversible uninstallation.
+- Daily, weekly and boot autostart with `--at`, task / retention / language persistence,
+  and status / disable flags on the same command.
 - Dependency-free SVG report renderer, profile-style graphics and English documentation.
 - Regression tests and Linux / ARM64 / macOS / FreeBSD CI.
 - MIT license file matching the previously documented license.
 
 ### Migration
 
-Run the installer with `--migrate-legacy --yes` as the original installing account.
+Run `sh clean.sh --install --migrate-legacy --yes` as the original installing account.
 This removes the recognized v1 script and its exact original cron line. Custom cron commands
-must be reviewed manually. Add `--schedule daily` explicitly to schedule v2 maintenance.
+must be reviewed manually. Add `--autostart daily` explicitly to schedule v2 maintenance.
 
 Do not source `clean.sh`: a child process cannot clear an interactive parent's in-memory history.

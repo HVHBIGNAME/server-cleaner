@@ -16,8 +16,12 @@ text() {
         *:confirm) text_format='Apply this plan? [y/N]: ' ;;
         ru:cancelled) text_format='Отменено.' ;;
         *:cancelled) text_format='Cancelled.' ;;
-        ru:tty) text_format='Для выполнения без терминала укажите --apply --yes.' ;;
-        *:tty) text_format='Non-interactive execution requires --apply --yes.' ;;
+        ru:tty) text_format='Для подтверждения без терминала укажите --yes.' ;;
+        *:tty) text_format='Non-interactive confirmation requires --yes.' ;;
+        ru:confirm_uninstall) text_format='Удалить Server Cleaner и его автозапуск? [y/N]: ' ;;
+        *:confirm_uninstall) text_format='Uninstall Server Cleaner and its autostart job? [y/N]: ' ;;
+        ru:confirm_migrate) text_format='Удалить старую установку v1 и её задачу cron? [y/N]: ' ;;
+        *:confirm_migrate) text_format='Remove the old v1 installation and its cron job? [y/N]: ' ;;
         ru:unknown) text_format='Неизвестный аргумент: %s. См. --help.' ;;
         *:unknown) text_format='Unknown argument: %s. See --help.' ;;
         ru:value) text_format='Недопустимое или отсутствующее значение %s.' ;;
@@ -93,13 +97,30 @@ usage() {
 Server Cleaner — обслуживание Linux, macOS и BSD
 
 Использование: server-cleaner [ПАРАМЕТРЫ]
+
+Очистка:
   --dry-run          Только показать план (по умолчанию)
   --apply            Выполнить выбранные действия после подтверждения
-  -y, --yes          Подтвердить --apply без вопроса
+  -y, --yes          Подтверждать выбранные действия без вопроса
   --only СПИСОК      Действия через запятую, например packages,journal
-  --keep-days N      Хранить журнал и кеш Docker N дней (1..3650; по умолчанию 14)
+  --keep-days N      Срок хранения journal / Docker / Homebrew (1..3650; 14)
   --list             Показать все действия и доступность инструментов
-  --json             Машиночитаемый отчёт в stdout; сообщения команд в stderr
+  --json             JSON-отчёт очистки; сообщения команд в stderr
+
+Установка и автоматизация:
+  --install          Установить или обновить единственную команду server-cleaner
+  --update           Обновить текущую установку (синоним --install)
+  --uninstall        Удалить программу и её автозапуск
+  --autostart РЕЖИМ  daily | weekly | boot | off | status
+  --at ЧЧ:ММ         Время daily / weekly (по умолчанию 03:17; weekly — воскресенье)
+  --prefix КАТАЛОГ   Префикс установки (по умолчанию ~/.local или /usr/local для root)
+  --system           Префикс /usr/local; нужны права root
+  --from КАТАЛОГ     Установка из локальных clean.sh + SHA256SUMS
+  --ref REF          Git commit / tag / branch для скачивания (по умолчанию main)
+  --migrate-legacy   При --install удалить распознанную установку v1
+  --agents           Показать установленные гостевые / облачные пакеты (только чтение)
+
+Общие:
   -q, --quiet        Убрать обычный интерфейс; ошибки остаются видимыми
   --no-color         Отключить ANSI-цвета (также поддерживается NO_COLOR)
   --lang ru|en       Язык интерфейса (по умолчанию — язык окружения)
@@ -109,19 +130,40 @@ Server Cleaner — обслуживание Linux, macOS и BSD
 Стандартные: packages, journal, temp, logs, coredumps.
 Только по запросу: docker (кеш сборки), history (сохранённая история своего пользователя).
 Временные файлы и дампы очищаются по правилам ОС, логи — по конфигурации ротации.
+Автозапуск использует cron и сохраняет --only, --keep-days, --lang и --quiet.
+--install можно совместить с --autostart и --apply; без --apply очистка сразу не запускается.
+
+Пример: server-cleaner --autostart daily --at 04:00 --only packages,journal --keep-days 30
 EOF
     else
         cat <<'EOF'
 Server Cleaner — Linux, macOS and BSD maintenance
 
 Usage: server-cleaner [OPTIONS]
+
+Cleanup:
   --dry-run          Preview only (default)
   --apply            Execute selected tasks after confirmation
-  -y, --yes          Confirm --apply without a prompt
+  -y, --yes          Confirm requested actions without a prompt
   --only LIST        Comma-separated tasks, e.g. packages,journal
-  --keep-days N      Journal / Docker retention (1..3650; default 14 days)
+  --keep-days N      Journal / Docker / Homebrew retention (1..3650; default 14)
   --list             Show all tasks and tool availability
-  --json             Machine-readable stdout; native command output on stderr
+  --json             Cleanup report as JSON; native command output on stderr
+
+Installation and automation:
+  --install          Install or update the single server-cleaner command
+  --update           Update the current installation (alias for --install)
+  --uninstall        Remove the program and its autostart job
+  --autostart MODE   daily | weekly | boot | off | status
+  --at HH:MM         Time for daily / weekly (default 03:17; weekly runs on Sunday)
+  --prefix DIR       Install prefix (default ~/.local, or /usr/local for root)
+  --system           Use /usr/local; requires root
+  --from DIR         Offline installation from clean.sh + SHA256SUMS
+  --ref REF          Git commit / tag / branch to download (default main)
+  --migrate-legacy   With --install, remove a recognized v1 installation
+  --agents           Read-only guest / cloud package inventory
+
+General:
   -q, --quiet        Hide the regular UI; errors remain visible
   --no-color         Disable ANSI colors (also honors NO_COLOR)
   --lang ru|en       UI language (default: environment locale)
@@ -131,6 +173,10 @@ Usage: server-cleaner [OPTIONS]
 Default: packages, journal, temp, logs, coredumps.
 Opt-in: docker (build cache), history (your own saved history files).
 Temporary files / core dumps follow OS age policies; logs follow rotation config.
+Autostart uses cron and preserves --only, --keep-days, --lang and --quiet.
+Combine --install with --autostart and --apply; cleanup only runs now with --apply.
+
+Example: server-cleaner --autostart daily --at 04:00 --only packages,journal --keep-days 30
 EOF
     fi
 }
@@ -174,14 +220,15 @@ json_args() {
 parse_args() {
     while [ "$#" -gt 0 ]; do
         case $1 in
-            --dry-run) MODE=preview ;;
+            --dry-run) MODE=preview; EXPLICIT_PREVIEW=1 ;;
             --apply) MODE=apply ;;
             -y|--yes) YES=1 ;;
             --json) JSON=1 ;;
-            -q|--quiet) QUIET=1 ;;
+            -q|--quiet|--silent) QUIET=1 ;;
             --no-color) COLOR=0 ;;
             --list) LIST=1 ;;
             --only)
+                TASK_OPTIONS=1
                 [ "$#" -ge 2 ] || fail "$(text value --only)" 2
                 case $2 in ''|,*|*,|*,,*|*[!a-z,]*) fail "$(text value --only)" 2 ;; esac
                 TASKS=$(printf '%s' "$2" | tr ',' ' ')
@@ -195,6 +242,7 @@ parse_args() {
                 shift
                 ;;
             --keep-days)
+                TASK_OPTIONS=1
                 [ "$#" -ge 2 ] || fail "$(text value --keep-days)" 2
                 case $2 in ''|0*|*[!0-9]*) fail "$(text value --keep-days)" 2 ;; esac
                 [ "${#2}" -le 4 ] && [ "$2" -le 3650 ] || fail "$(text value --keep-days)" 2
@@ -204,6 +252,28 @@ parse_args() {
             --lang)
                 [ "$#" -ge 2 ] || fail "$(text value --lang)" 2
                 case $2 in ru|en) LANGUAGE=$2 ;; *) fail "$(text value --lang)" 2 ;; esac
+                shift
+                ;;
+            --install|--update) set_action install ;;
+            --uninstall) set_action uninstall ;;
+            --agents) set_action agents ;;
+            --system) PREFIX=/usr/local; SYSTEM_PREFIX=1; PREFIX_SET=1 ;;
+            --migrate-legacy) MIGRATE=1 ;;
+            --prefix|--from|--ref|--autostart|--at)
+                [ "$#" -ge 2 ] && [ -n "$2" ] || fail "$(text value "$1")" 2
+                case $1 in
+                    --prefix) PREFIX=$2; PREFIX_SET=1 ;;
+                    --from) SOURCE_DIR=$2 ;;
+                    --ref) REF=$2; REF_SET=1 ;;
+                    --autostart)
+                        case $2 in daily|weekly|boot|off|status) AUTOSTART=$2 ;; *) fail "$(text value --autostart)" 2 ;; esac
+                        ;;
+                    --at)
+                        case $2 in [0-2][0-9]:[0-5][0-9]) ;; *) fail "$(text value --at)" 2 ;; esac
+                        [ "${2%:*}" -le 23 ] || fail "$(text value --at)" 2
+                        SCHEDULE_TIME=$2; TIME_SET=1
+                        ;;
+                esac
                 shift
                 ;;
             --version) printf '%s\n' "$SC_VERSION"; exit 0 ;;
@@ -216,6 +286,40 @@ parse_args() {
         [ "$MODE" != apply ] || fail "$(text value '--list + --apply')" 2
         MODE=capabilities
         TASKS="$DEFAULT_TASKS docker history"
+    fi
+    validate_flags
+}
+
+set_action() {
+    [ "$ACTION" = clean ] || [ "$ACTION" = "$1" ] || fail "$(text value 'conflicting actions')" 2
+    ACTION=$1
+}
+
+validate_flags() {
+    if [ "$ACTION" != clean ] || [ -n "$AUTOSTART" ]; then
+        [ "$JSON" -eq 0 ] && [ "$LIST" -eq 0 ] && [ "$EXPLICIT_PREVIEW" -eq 0 ] ||
+            fail "$(text value '--json/--list/--dry-run are cleanup options')" 2
+    fi
+    if [ "$ACTION" != install ]; then
+        [ -z "$SOURCE_DIR" ] && [ "$REF_SET" -eq 0 ] && [ "$MIGRATE" -eq 0 ] || fail "$(text value '--from/--ref/--migrate-legacy require --install')" 2
+    fi
+    case $ACTION in
+        uninstall|agents)
+            [ -z "$AUTOSTART" ] && [ "$MODE" != apply ] && [ "$TASK_OPTIONS" -eq 0 ] || fail "$(text value 'conflicting actions')" 2
+            ;;
+    esac
+    if [ "$ACTION" = agents ] && [ "$PREFIX_SET" -eq 1 ]; then fail "$(text value '--prefix/--system are installation options')" 2; fi
+    if [ "$TIME_SET" -eq 1 ]; then
+        case $AUTOSTART in daily|weekly) ;; *) fail "$(text value '--at requires daily or weekly')" 2 ;; esac
+    fi
+    case $AUTOSTART in
+        off|status) [ "$TASK_OPTIONS" -eq 0 ] && [ "$MODE" != apply ] || fail "$(text value 'off/status do not run cleanup')" 2 ;;
+    esac
+    if [ "$ACTION" = install ] && [ "$TASK_OPTIONS" -eq 1 ] && [ -z "$AUTOSTART" ] && [ "$MODE" != apply ]; then
+        fail "$(text value 'cleanup parameters require --apply or --autostart')" 2
+    fi
+    if [ "$PREFIX_SET" -eq 1 ] && [ "$ACTION" = clean ] && [ -z "$AUTOSTART" ]; then
+        fail "$(text value '--prefix/--system require a management action')" 2
     fi
 }
 
@@ -496,12 +600,318 @@ menu() {
 confirm_plan() {
     [ "$YES" -eq 0 ] || return 0
     ( : <> /dev/tty ) 2>/dev/null || fail "$(text tty)" 2
-    text confirm > /dev/tty
+    text "${1:-confirm}" > /dev/tty
     IFS= read -r answer < /dev/tty || answer=''
     case $answer in
         y|Y|yes|YES|д|Д|да|Да) return 0 ;;
         *) printf '%s\n' "$(text cancelled)" >&2; exit 0 ;;
     esac
+}
+
+management_message() {
+    message_ru=$1 message_en=$2
+    shift 2
+    if [ "$LANGUAGE" = ru ]; then printf "$message_ru\n" "$@"; else printf "$message_en\n" "$@"; fi
+}
+
+management_error() { management_message "$@" >&2; exit 1; }
+
+installation_paths() {
+    if [ -z "$PREFIX" ]; then
+        if [ "$USER_ID" -eq 0 ]; then PREFIX=/usr/local; else PREFIX=${HOME:?HOME is required}/.local; fi
+        case $0 in */server-cleaner) PREFIX=$(CDPATH='' cd -P "$(dirname "$0")/.." && pwd -P) ;; esac
+    fi
+    case $PREFIX in /*) ;; *) fail "$(text value --prefix)" 2 ;; esac
+    case $PREFIX in *'
+'*|*'%'*) fail "$(text value --prefix)" 2 ;; esac
+    if printf '%s' "$PREFIX" | grep -q '[[:cntrl:]]'; then fail "$(text value --prefix)" 2; fi
+    PREFIX=${PREFIX%/}
+    [ -n "$PREFIX" ] || fail "$(text value --prefix)" 2
+    if [ -d "$PREFIX" ]; then PREFIX=$(CDPATH='' cd -P "$PREFIX" && pwd -P); fi
+    [ "$PREFIX" != / ] || fail "$(text value --prefix)" 2
+    BINDIR=$PREFIX/bin
+    PROGRAM=$BINDIR/server-cleaner
+    [ ! -L "$BINDIR" ] || fail "$(text unsafe_path "$BINDIR")"
+    case $REF in ''|*[!a-zA-Z0-9_./-]*|*..*) fail "$(text value --ref)" 2 ;; esac
+}
+
+check_program() {
+    [ ! -L "$PROGRAM" ] || fail "$(text unsafe_path "$PROGRAM")"
+    if [ -e "$PROGRAM" ]; then
+        if [ ! -f "$PROGRAM" ] || ! grep -Fqx '# server-cleaner:managed:clean' "$PROGRAM"; then
+            management_error 'Файл не принадлежит Server Cleaner: %s.' 'File is not managed by Server Cleaner: %s.' "$PROGRAM"
+        fi
+    fi
+}
+
+management_cleanup() {
+    if [ -n "$BIN_STAGE" ]; then rm -f "$BIN_STAGE"; fi
+    if [ "$INSTALL_LOCKED" -eq 1 ]; then rmdir "$INSTALL_LOCK"; fi
+    if [ -n "$MANAGE_DIR" ]; then rm -rf "$MANAGE_DIR"; fi
+}
+
+download_file() {
+    download_name=$1
+    if [ -n "$SOURCE_DIR" ]; then
+        cp "$SOURCE_DIR/$download_name" "$MANAGE_DIR/$download_name" ||
+            management_error 'Не удалось прочитать %s.' 'Cannot read %s.' "$download_name"
+    elif has curl; then
+        curl --fail --silent --show-error --location --proto '=https' --proto-redir '=https' \
+            --connect-timeout 15 --max-time 120 --retry 2 \
+            "$BASE_URL/$download_name" -o "$MANAGE_DIR/$download_name" ||
+            management_error 'Не удалось скачать %s.' 'Download failed: %s.' "$download_name"
+    elif has wget; then
+        wget -q -T 60 -O "$MANAGE_DIR/$download_name" "$BASE_URL/$download_name" ||
+            management_error 'Не удалось скачать %s.' 'Download failed: %s.' "$download_name"
+    else
+        management_error 'Нужен curl, wget или --from КАТАЛОГ.' 'Use curl, wget or --from DIR.'
+    fi
+}
+
+file_sha256() {
+    if has sha256sum; then sha256sum "$1" | awk '{print $1}';
+    elif has shasum; then shasum -a 256 "$1" | awk '{print $1}';
+    elif has sha256; then sha256 -q "$1";
+    else management_error 'Нужна утилита sha256sum, shasum или sha256.' 'A SHA-256 tool is required: sha256sum, shasum or sha256.'; fi
+}
+
+verify_download() {
+    expected_hash=$(awk '$2 == "clean.sh" && NF == 2 {print $1; found++} END {if(found != 1) exit 1}' "$MANAGE_DIR/SHA256SUMS") ||
+        management_error 'Некорректный SHA256SUMS.' 'Invalid SHA256SUMS entry.'
+    case $expected_hash in ''|*[!0-9a-f]*) fail 'Invalid SHA-256.' ;; esac
+    [ "${#expected_hash}" -eq 64 ] || fail 'Invalid SHA-256 length.'
+    actual_hash=$(file_sha256 "$MANAGE_DIR/clean.sh")
+    [ "$expected_hash" = "$actual_hash" ] || management_error 'Проверка SHA-256 не пройдена.' 'SHA-256 mismatch.'
+    sh -n "$MANAGE_DIR/clean.sh" || management_error 'Ошибка синтаксиса clean.sh.' 'Shell syntax check failed: clean.sh.'
+    grep -Fqx '# server-cleaner:managed:clean' "$MANAGE_DIR/clean.sh" || fail 'Invalid installation bundle.'
+}
+
+remove_old_helpers() {
+    for helper_kind in uninstall agents; do
+        helper_path=$BINDIR/server-cleaner-$helper_kind
+        if [ ! -L "$helper_path" ] && [ -f "$helper_path" ] && grep -Fqx "# server-cleaner:managed:$helper_kind" "$helper_path"; then
+            rm -f "$helper_path"
+        fi
+    done
+}
+
+read_cron() {
+    if crontab -l > "$1" 2> "$MANAGE_DIR/cron.error"; then return 0; fi
+    if [ ! -s "$1" ] && grep -Eq '(no crontab for|can.t open .*: No such file or directory)' "$MANAGE_DIR/cron.error"; then return 0; fi
+    cat "$MANAGE_DIR/cron.error" >&2
+    management_error 'Не удалось прочитать crontab; изменения отменены.' 'Cannot read crontab; no cron changes made.'
+}
+
+same_crontab() {
+    cron_left=$(cat "$1" && printf '.') || return 1
+    cron_right=$(cat "$2" && printf '.') || return 1
+    [ "$cron_left" = "$cron_right" ]
+}
+
+filter_cron() {
+    SC_CRON_BEGIN="# BEGIN server-cleaner $PREFIX" SC_CRON_END="# END server-cleaner $PREFIX"
+    export SC_CRON_BEGIN SC_CRON_END
+    awk 'BEGIN {begin=ENVIRON["SC_CRON_BEGIN"]; end=ENVIRON["SC_CRON_END"]}
+        $0==begin {if (inside) exit 2; inside=1; next}
+        $0==end {if (!inside) exit 2; inside=0; next}
+        !inside {print}
+        END {if (inside) exit 2}' "$MANAGE_DIR/cron.before" > "$MANAGE_DIR/cron.after" ||
+        management_error 'Повреждён блок Server Cleaner в crontab.' 'Malformed Server Cleaner crontab block.'
+}
+
+write_cron() {
+    if same_crontab "$MANAGE_DIR/cron.before" "$MANAGE_DIR/cron.after"; then return 0; fi
+    read_cron "$MANAGE_DIR/cron.current"
+    same_crontab "$MANAGE_DIR/cron.before" "$MANAGE_DIR/cron.current" ||
+        management_error 'Crontab изменился параллельно; повторите команду.' 'Crontab changed concurrently; retry the command.'
+    crontab "$MANAGE_DIR/cron.after" || management_error 'Не удалось обновить crontab.' 'Failed to update crontab.'
+}
+
+shell_quote() { printf "'%s'" "$(printf '%s' "$1" | sed "s/'/'\\\\''/g")"; }
+
+preflight_autostart() (
+    has crontab || fail "$(text missing crontab)"
+    resolve_home || fail "$(text unsafe_home)"
+    MODE=apply RUN_MODE=preview QUIET=1
+    reset_results
+    run_tasks
+    [ "$FAILED" -eq 0 ]
+)
+
+autostart_line() {
+    cron_hour=$(printf '%s' "${SCHEDULE_TIME%:*}" | awk '{printf "%d", $0}')
+    cron_minute=$(printf '%s' "${SCHEDULE_TIME#*:}" | awk '{printf "%d", $0}')
+    case $AUTOSTART in
+        daily) printf '%s %s * * * ' "$cron_minute" "$cron_hour" ;;
+        weekly) printf '%s %s * * 0 ' "$cron_minute" "$cron_hour" ;;
+        boot) printf '@reboot ' ;;
+    esac
+    printf '/usr/bin/env PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/opt/homebrew/bin '
+    shell_quote "HOME=$HOME_REAL"
+    printf ' '
+    shell_quote "XDG_STATE_HOME=${XDG_STATE_HOME:-$HOME_REAL/.local/state}"
+    printf ' /bin/sh '
+    shell_quote "$PROGRAM"
+    task_csv=$(printf '%s\n' "$TASKS" | awk '{$1=$1; gsub(/ /, ","); print}')
+    printf ' --apply --yes --no-color --only %s --keep-days %s --lang %s' "$task_csv" "$KEEP_DAYS" "$LANGUAGE"
+    if [ "$QUIET" -eq 1 ]; then printf ' --quiet'; fi
+    printf '\n'
+}
+
+configure_autostart() {
+    if ! has crontab; then
+        case $AUTOSTART in
+            off|status) if [ "$QUIET" -eq 0 ]; then management_message 'Автозапуск: выключен (нет cron).' 'Autostart: off (cron unavailable).'; fi; return ;;
+            *) fail "$(text missing crontab)" ;;
+        esac
+    fi
+    read_cron "$MANAGE_DIR/cron.before"
+    filter_cron
+    if [ "$AUTOSTART" = status ]; then
+        if same_crontab "$MANAGE_DIR/cron.before" "$MANAGE_DIR/cron.after"; then
+            management_message 'Автозапуск: выключен.' 'Autostart: off.'
+        else
+            awk '$0==ENVIRON["SC_CRON_BEGIN"] {inside=1; next} $0==ENVIRON["SC_CRON_END"] {inside=0; next} inside {print}' "$MANAGE_DIR/cron.before"
+        fi
+        return
+    fi
+    if [ "$AUTOSTART" != off ]; then
+        [ -f "$PROGRAM" ] && [ -x "$PROGRAM" ] ||
+            management_error 'Сначала выполните --install.' 'Run --install first.'
+        private_path "$PROGRAM" || fail "$(text unsafe_path "$PROGRAM")"
+        resolve_home || fail "$(text unsafe_home)"
+        case ${XDG_STATE_HOME:-$HOME_REAL/.local/state} in /*) ;; *) fail "$(text value XDG_STATE_HOME)" 2 ;; esac
+        cron_line=$(autostart_line)
+        case $cron_line in *'%'*|*'
+'*) management_error 'Пути автозапуска не должны содержать %% или перевод строки.' 'Autostart paths must not contain %% or a newline.' ;; esac
+        {
+            printf '%s\n%s\n%s\n' "$SC_CRON_BEGIN" "$cron_line" "$SC_CRON_END"
+        } >> "$MANAGE_DIR/cron.after"
+    fi
+    write_cron
+    if [ "$QUIET" -eq 0 ]; then management_message 'Автозапуск: %s. Состояние: --autostart status.' 'Autostart: %s. Inspect with --autostart status.' "$AUTOSTART"; fi
+}
+
+check_legacy() {
+    resolve_home || fail "$(text unsafe_home)"
+    LEGACY_FILE=$HOME/.cache/system/.sysupdate
+    for legacy_path in "$HOME/.cache" "$HOME/.cache/system" "$LEGACY_FILE"; do
+        [ ! -L "$legacy_path" ] || fail "$(text unsafe_path "$legacy_path")"
+    done
+    if [ -e "$LEGACY_FILE" ]; then
+        if [ ! -f "$LEGACY_FILE" ] || ! grep -Fq 'cat /dev/null > ~/.bash_history' "$LEGACY_FILE" || ! grep -Fq '/var/log/auth.log' "$LEGACY_FILE"; then
+            management_error 'Нераспознанный файл v1: %s.' 'Unrecognized v1 file: %s.' "$LEGACY_FILE"
+        fi
+    fi
+}
+
+remove_legacy() {
+    if has crontab; then
+        read_cron "$MANAGE_DIR/cron.before"
+        SC_OLD_CRON="0 0 * * * /bin/bash $LEGACY_FILE >/dev/null 2>&1"
+        export SC_OLD_CRON
+        awk '$0 != ENVIRON["SC_OLD_CRON"] && $0 != "0 0 * * * /bin/bash ~/.cache/system/.sysupdate >/dev/null 2>&1"' \
+            "$MANAGE_DIR/cron.before" > "$MANAGE_DIR/cron.after"
+        write_cron
+    fi
+    rm -f "$LEGACY_FILE"
+}
+
+install_program() {
+    BASE_URL=https://raw.githubusercontent.com/HVHBIGNAME/server-cleaner/$REF
+    download_file SHA256SUMS
+    download_file clean.sh
+    verify_download
+    mkdir -p "$PREFIX"
+    installation_paths
+    check_program
+    mkdir -p "$BINDIR"
+    INSTALL_LOCK=$BINDIR/.server-cleaner-install-lock
+    mkdir "$INSTALL_LOCK" 2>/dev/null || fail "$(text lock "$INSTALL_LOCK")" 75
+    INSTALL_LOCKED=1
+    BIN_STAGE=$(mktemp "$BINDIR/.server-cleaner.XXXXXXXX")
+    cp "$MANAGE_DIR/clean.sh" "$BIN_STAGE"
+    chmod 755 "$BIN_STAGE"
+    mv -f "$BIN_STAGE" "$PROGRAM"
+    BIN_STAGE=''
+    remove_old_helpers
+    if [ "$MIGRATE" -eq 1 ]; then remove_legacy; fi
+    if [ "$QUIET" -eq 0 ]; then
+        management_message 'Установлено: %s — справка: --help' 'Installed: %s — help: --help' "$PROGRAM"
+        case :$PATH: in *:"$BINDIR":*) ;; *) management_message 'Добавьте %s в PATH или используйте полный путь.' 'Add %s to PATH or use the full path.' "$BINDIR" ;; esac
+    fi
+}
+
+run_installed_cleanup() {
+    task_csv=$(printf '%s\n' "$TASKS" | awk '{$1=$1; gsub(/ /, ","); print}')
+    set -- "$PROGRAM" --apply --only "$task_csv" --keep-days "$KEEP_DAYS" --lang "$LANGUAGE"
+    if [ "$YES" -eq 1 ]; then set -- "$@" --yes; fi
+    if [ "$QUIET" -eq 1 ]; then set -- "$@" --quiet; fi
+    if [ "$COLOR" -eq 0 ]; then set -- "$@" --no-color; fi
+    "$@"
+}
+
+manage() (
+    set -eu
+    MANAGE_DIR='' BIN_STAGE='' INSTALL_LOCKED=0
+    installation_paths
+    check_program
+    if [ "$SYSTEM_PREFIX" -eq 1 ] && [ "$USER_ID" -ne 0 ]; then fail "$(text root)"; fi
+    case $AUTOSTART in daily|weekly|boot) preflight_autostart ;; esac
+    if [ "$ACTION" = install ]; then
+        if [ -e "${HOME:-}/.cache/system/.sysupdate" ] && [ "$MIGRATE" -eq 0 ]; then
+            management_error 'Найдена v1. Используйте --install --migrate-legacy.' 'v1 found. Use --install --migrate-legacy.'
+        fi
+        if [ "$MIGRATE" -eq 1 ]; then check_legacy; confirm_plan confirm_migrate; fi
+    elif [ "$ACTION" = uninstall ]; then
+        confirm_plan confirm_uninstall
+    fi
+    MANAGE_DIR=$(umask 077; mktemp -d "${TMPDIR:-/tmp}/server-cleaner-manage.XXXXXXXX")
+    trap 'management_cleanup' 0
+    trap 'exit 130' INT
+    trap 'exit 143' TERM
+    trap 'exit 129' HUP
+    if [ "$ACTION" = uninstall ]; then
+        AUTOSTART=off
+        configure_autostart
+        rm -f "$PROGRAM"
+        remove_old_helpers
+        if [ "$QUIET" -eq 0 ]; then management_message 'Server Cleaner удалён.' 'Server Cleaner uninstalled.'; fi
+        exit 0
+    fi
+    if [ "$ACTION" = install ]; then install_program; fi
+    if [ -n "$AUTOSTART" ]; then configure_autostart; fi
+    if [ "$MODE" = apply ]; then run_installed_cleanup; fi
+)
+
+agent_installed() {
+    case $query_tool in
+        dpkg-query) agent_status=$(dpkg-query -W -f='${db:Status-Status}' "$1" 2>/dev/null) || return 1; [ "$agent_status" = installed ] ;;
+        rpm) rpm -q --quiet "$1" >/dev/null 2>&1 ;;
+        apk) apk info -e "$1" >/dev/null 2>&1 ;;
+        pacman) pacman -Q "$1" >/dev/null 2>&1 ;;
+        pkg) pkg info -e "$1" >/dev/null 2>&1 ;;
+    esac
+}
+
+list_agents() {
+    query_tool=''
+    for query_candidate in dpkg-query rpm apk pacman pkg; do
+        if has "$query_candidate"; then query_tool=$query_candidate; break; fi
+    done
+    if [ -z "$query_tool" ]; then
+        printf 'No supported package database / Нет поддерживаемой базы пакетов.\n' >&2
+        return 3
+    fi
+    management_message 'Гостевые и облачные пакеты (только чтение):' 'Guest and cloud packages (read-only):'
+    agents_found=0
+    for agent_package in qemu-guest-agent cloud-init open-vm-tools virtualbox-guest-utils hyperv-daemons \
+        amazon-cloudwatch-agent amazon-ssm-agent google-guest-agent google-osconfig-agent walinuxagent \
+        waagent digitalocean-agent do-agent vultr-guest-agent landscape-client; do
+        if agent_installed "$agent_package"; then printf '  installed  %s\n' "$agent_package"; agents_found=$((agents_found + 1)); fi
+    done
+    printf '\nFound / Найдено: %s\n' "$agents_found"
+    management_message 'Показаны известные пакеты; ручные установки могут не отображаться.' 'Known packages only; manual installations may not appear.'
 }
 
 main() {
@@ -510,6 +920,8 @@ main() {
     DEFAULT_TASKS='packages journal temp logs coredumps'
     TASKS=$DEFAULT_TASKS
     MODE=preview YES=0 JSON=0 QUIET=0 COLOR=1 LIST=0 KEEP_DAYS=14 LOCK_HELD=0
+    ACTION=clean PREFIX='' PREFIX_SET=0 SYSTEM_PREFIX=0 SOURCE_DIR='' REF=main REF_SET=0 MIGRATE=0
+    AUTOSTART='' SCHEDULE_TIME=03:17 TIME_SET=0 TASK_OPTIONS=0 EXPLICIT_PREVIEW=0
     ACCENT='' RESET=''
     initial_arg_count=$#
     parse_args "$@"
@@ -517,6 +929,8 @@ main() {
     export LC_ALL
     has awk || fail "$(text missing awk)" 3
     detect_platform
+    if [ "$ACTION" = agents ]; then list_agents; return $?; fi
+    if [ "$ACTION" != clean ] || [ -n "$AUTOSTART" ]; then manage; return $?; fi
     if [ "$COLOR" -eq 1 ] && [ -t 1 ] && [ -z "${NO_COLOR+x}" ] && [ "${TERM:-dumb}" != dumb ]; then
         ACCENT=$(printf '\033[1;32m') RESET=$(printf '\033[0m')
     fi
