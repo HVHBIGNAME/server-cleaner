@@ -1,352 +1,255 @@
-#!/bin/bash
+#!/bin/sh
+# SPDX-License-Identifier: MIT
 
-set -e
-
-# Цвета для вывода
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
-NC='\033[0m'
-
-SCRIPT_VERSION="1.0.0"
-HIDDEN_DIR="$HOME/.cache/system"
-SCRIPT_NAME=".sysupdate"
-SCRIPT_PATH="$HIDDEN_DIR/$SCRIPT_NAME"
-SCRIPT_URL="https://raw.githubusercontent.com/HVHBIGNAME/server-cleaner/main/clean.sh"
-
-# Параметры по умолчанию
-AUTO_CRON=false
-AUTO_RUN=false
-AUTO_INSTALL_DEPS=false
-SILENT=false
-
-# Парсинг аргументов
-while [[ $# -gt 0 ]]; do
-    case $1 in
-        --auto-cron)
-            AUTO_CRON=true
-            shift
-            ;;
-        --auto-run)
-            AUTO_RUN=true
-            shift
-            ;;
-        --auto-deps)
-            AUTO_INSTALL_DEPS=true
-            shift
-            ;;
-        --silent)
-            SILENT=true
-            AUTO_CRON=true
-            AUTO_INSTALL_DEPS=true
-            shift
-            ;;
-        --help)
-            echo "Usage: $0 [OPTIONS]"
-            echo "Options:"
-            echo "  --auto-cron    Automatically add to crontab without asking"
-            echo "  --auto-run     Automatically run cleaning script after install"
-            echo "  --auto-deps    Automatically install missing dependencies"
-            echo "  --silent       Run without prompts (implies --auto-cron --auto-deps)"
-            echo "  --help         Show this help message"
-            exit 0
-            ;;
-        *)
-            echo "Unknown option: $1"
-            exit 1
-            ;;
-    esac
-done
-
-# Функция вывода сообщений
-log_info() { 
-    if [ "$SILENT" = false ]; then
-        echo -e "${GREEN}[INFO]${NC} $1"
-    fi
-}
-log_warn() { 
-    if [ "$SILENT" = false ]; then
-        echo -e "${YELLOW}[WARN]${NC} $1"
-    fi
-}
-log_error() { echo -e "${RED}[ERROR]${NC} $1"; }
-
-# Проверка root прав
-check_root() {
-    if [ "$EUID" -ne 0 ]; then
-        log_warn "Some operations require root. Run with sudo for full functionality."
-        return 1
-    fi
-    return 0
+installer_message() {
+    message_ru=$1 message_en=$2
+    shift 2
+    if [ "$INSTALL_LANG" = ru ]; then printf "$message_ru\n" "$@"; else printf "$message_en\n" "$@"; fi
 }
 
-# Проверка и установка зависимостей
-install_dependencies() {
-    local missing_deps=()
-    
-    if ! command -v curl &> /dev/null && ! command -v wget &> /dev/null; then
-        missing_deps+=("curl")
-    fi
-    
-    if ! command -v crontab &> /dev/null; then
-        missing_deps+=("cron")
-    fi
-    
-    if [ ${#missing_deps[@]} -eq 0 ]; then
-        log_info "All dependencies satisfied"
-        return 0
-    fi
-    
-    log_warn "Missing dependencies: ${missing_deps[*]}"
-    
-    if ! check_root; then
-        log_error "Root access required to install dependencies"
-        log_info "Please run: sudo $0"
-        exit 1
-    fi
-    
-    # Автоматическая установка или запрос
-    if [ "$AUTO_INSTALL_DEPS" = true ]; then
-        log_info "Installing dependencies automatically..."
-    else
-        echo ""
-        read -p "Install missing dependencies? (Y/n): " -n 1 -r
-        echo
-        
-        if [[ ! $REPLY =~ ^[Yy]$ ]] && [[ ! -z $REPLY ]]; then
-            log_error "Cannot continue without required dependencies"
-            exit 1
-        fi
-    fi
-    
-    # Установка зависимостей
-    if command -v apt-get &> /dev/null; then
-        log_info "Installing via apt-get..."
-        apt-get update -qq
-        for dep in "${missing_deps[@]}"; do
-            if [ "$dep" = "cron" ]; then
-                apt-get install -y cron || {
-                    log_error "Failed to install cron"
-                    exit 1
-                }
-                systemctl enable cron 2>/dev/null || true
-                systemctl start cron 2>/dev/null || true
-            else
-                apt-get install -y "$dep" || {
-                    log_error "Failed to install $dep"
-                    exit 1
-                }
-            fi
-        done
-    elif command -v yum &> /dev/null; then
-        log_info "Installing via yum..."
-        for dep in "${missing_deps[@]}"; do
-            if [ "$dep" = "cron" ]; then
-                yum install -y cronie || {
-                    log_error "Failed to install cronie"
-                    exit 1
-                }
-                systemctl enable crond 2>/dev/null || true
-                systemctl start crond 2>/dev/null || true
-            else
-                yum install -y "$dep" || {
-                    log_error "Failed to install $dep"
-                    exit 1
-                }
-            fi
-        done
-    elif command -v dnf &> /dev/null; then
-        log_info "Installing via dnf..."
-        for dep in "${missing_deps[@]}"; do
-            if [ "$dep" = "cron" ]; then
-                dnf install -y cronie || {
-                    log_error "Failed to install cronie"
-                    exit 1
-                }
-                systemctl enable crond 2>/dev/null || true
-                systemctl start crond 2>/dev/null || true
-            else
-                dnf install -y "$dep" || {
-                    log_error "Failed to install $dep"
-                    exit 1
-                }
-            fi
-        done
-    elif command -v pacman &> /dev/null; then
-        log_info "Installing via pacman..."
-        for dep in "${missing_deps[@]}"; do
-            pacman -S --noconfirm "$dep" || {
-                log_error "Failed to install $dep"
-                exit 1
-            }
-        done
-    else
-        log_error "Unknown package manager. Please install manually: ${missing_deps[*]}"
-        exit 1
-    fi
-    
-    log_info "Dependencies installed successfully"
-}
-
-# Создание директории
-create_directory() {
-    if [ -d "$HIDDEN_DIR" ]; then
-        log_info "Directory already exists: $HIDDEN_DIR"
-    else
-        mkdir -p "$HIDDEN_DIR" 2>/dev/null || {
-            log_error "Failed to create directory: $HIDDEN_DIR"
-            exit 1
-        }
-        log_info "Created directory: $HIDDEN_DIR"
-    fi
-}
-
-# Скачивание скрипта
-download_script() {
-    log_info "Downloading cleaning script..."
-    
-    if command -v curl &> /dev/null; then
-        if curl -fsSL "$SCRIPT_URL" -o "$SCRIPT_PATH" 2>/dev/null; then
-            log_info "Downloaded via curl"
-            return 0
-        else
-            log_warn "curl failed, trying wget..."
-        fi
-    fi
-    
-    if command -v wget &> /dev/null; then
-        if wget -qO "$SCRIPT_PATH" "$SCRIPT_URL" 2>/dev/null; then
-            log_info "Downloaded via wget"
-            return 0
-        else
-            log_error "wget failed"
-        fi
-    fi
-    
-    log_error "Failed to download script from $SCRIPT_URL"
+installer_error() {
+    installer_message "$@" >&2
     exit 1
 }
 
-# Установка прав
-set_permissions() {
-    chmod +x "$SCRIPT_PATH" 2>/dev/null || {
-        log_error "Failed to set execute permission"
-        exit 1
-    }
-    log_info "Set execute permissions"
+installer_help() {
+    cat <<'EOF'
+Server Cleaner installer
+
+Usage: sh install.sh [OPTIONS]
+  --prefix DIR        Install to DIR/bin (absolute path)
+  --system            Install to /usr/local; requires root
+  --from DIR          Offline install from a checkout with SHA256SUMS
+  --ref REF           Git commit / tag / branch to download (default: main)
+  --schedule daily    Opt-in maintenance at 03:17; requires root and crontab
+  --auto-cron         Alias for --schedule daily
+  --auto-run          Opt-in cleanup after installation
+  --migrate-legacy    Remove the current user's v1 .sysupdate installation
+  -y, --yes           Confirm optional cleanup / legacy migration
+  -q, --quiet         Less output (--silent is an alias, with no extra actions)
+  --lang ru|en        Installer language
+  -h, --help          This help
+
+Default prefix: ~/.local for users, /usr/local for root.
+Installation alone does not clean anything or schedule a job.
+EOF
 }
 
-# Настройка crontab
-setup_cron() {
-    if ! command -v crontab &> /dev/null; then
-        log_warn "crontab not available, skipping automatic scheduling"
-        return 1
+installer_parse() {
+    while [ "$#" -gt 0 ]; do
+        case $1 in
+            --prefix|--from|--ref|--schedule|--lang)
+                [ "$#" -ge 2 ] && [ -n "$2" ] || installer_error 'Отсутствует значение %s.' 'Missing value for %s.' "$1"
+                case $1 in
+                    --prefix) PREFIX=$2 ;;
+                    --from) SOURCE_DIR=$2 ;;
+                    --ref) REF=$2 ;;
+                    --schedule)
+                        [ "$2" = daily ] || installer_error 'Допустимое расписание: daily.' 'Supported schedule: daily.'
+                        SCHEDULE=1
+                        ;;
+                    --lang)
+                        case $2 in ru|en) INSTALL_LANG=$2 ;; *) installer_error 'Язык: ru или en.' 'Language must be ru or en.' ;; esac
+                        ;;
+                esac
+                shift
+                ;;
+            --system)
+                [ "$INSTALL_UID" -eq 0 ] || installer_error 'Для --system нужен root.' '--system requires root.'
+                PREFIX=/usr/local
+                ;;
+            --auto-cron) SCHEDULE=1 ;;
+            --auto-run) AUTO_RUN=1 ;;
+            --migrate-legacy) MIGRATE=1 ;;
+            -y|--yes) INSTALL_YES=1 ;;
+            -q|--quiet|--silent) INSTALL_QUIET=1 ;;
+            -h|--help) installer_help; exit 0 ;;
+            *) installer_error 'Неизвестный аргумент: %s.' 'Unknown argument: %s.' "$1" ;;
+        esac
+        shift
+    done
+}
+
+installer_validate() {
+    case $(uname -s) in
+        Linux|Darwin|FreeBSD|OpenBSD|NetBSD) ;;
+        *) installer_error 'Нужна система Linux, macOS или BSD. Для Windows используйте WSL.' 'Linux, macOS or BSD required. On Windows, use WSL.' ;;
+    esac
+    case $PREFIX in /*) ;; *) installer_error 'Путь --prefix должен быть абсолютным.' '--prefix must be an absolute path.' ;; esac
+    case $PREFIX in
+        *'
+'*|*'%'*) installer_error 'Путь установки не должен содержать перевод строки или %%.' 'Install path must not contain a newline or %%.' ;;
+    esac
+    if printf '%s' "$PREFIX" | LC_ALL=C grep -q '[[:cntrl:]]'; then
+        installer_error 'Путь содержит управляющие символы.' 'Install path contains control characters.'
     fi
-    
-    if crontab -l 2>/dev/null | grep -qF "$SCRIPT_PATH"; then
-        log_info "Already scheduled in crontab"
+    case $REF in ''|*[!a-zA-Z0-9_./-]*|*..*) installer_error 'Недопустимый Git ref.' 'Invalid Git ref.' ;; esac
+    PREFIX=${PREFIX%/}
+    [ -n "$PREFIX" ] || installer_error 'Нельзя устанавливать в /.' 'Cannot install into /.'
+    if [ -d "$PREFIX" ]; then PREFIX=$(CDPATH='' cd -P "$PREFIX" && pwd -P); fi
+    [ "$PREFIX" != / ] || installer_error 'Нельзя устанавливать в /.' 'Cannot install into /.'
+    if [ "$SCHEDULE" -eq 1 ]; then
+        [ "$INSTALL_UID" -eq 0 ] || installer_error 'Расписание системной очистки требует root.' 'Scheduling system maintenance requires root.'
+        command -v crontab >/dev/null 2>&1 || installer_error 'Установите и запустите cron перед --schedule daily.' 'Install and start cron before using --schedule daily.'
+    fi
+    if [ -f "${HOME:-}/.cache/system/.sysupdate" ] && [ "$MIGRATE" -eq 0 ]; then
+        installer_error 'Найдена v1. Повторите установку с --migrate-legacy для удаления старой задачи.' 'v1 found. Re-run with --migrate-legacy to remove its old job.'
+    fi
+}
+
+installer_cleanup() {
+    if [ -n "$INSTALL_STAGE" ]; then rm -rf "$INSTALL_STAGE"; fi
+    if [ -n "$BIN_STAGE" ]; then rm -f "$BIN_STAGE"; fi
+    if [ "$INSTALL_LOCKED" -eq 1 ]; then rmdir "$INSTALL_LOCK"; fi
+}
+
+download_file() {
+    download_name=$1
+    if [ -n "$SOURCE_DIR" ]; then
+        cp "$SOURCE_DIR/$download_name" "$INSTALL_STAGE/$download_name" || installer_error 'Не удалось прочитать %s.' 'Cannot read %s.' "$download_name"
+    elif command -v curl >/dev/null 2>&1; then
+        curl --fail --silent --show-error --location --proto '=https' --proto-redir '=https' \
+            --connect-timeout 15 --max-time 120 --retry 2 \
+            "$BASE_URL/$download_name" -o "$INSTALL_STAGE/$download_name" || installer_error 'Не удалось скачать %s.' 'Download failed: %s.' "$download_name"
+    elif command -v wget >/dev/null 2>&1; then
+        wget -q -T 60 -O "$INSTALL_STAGE/$download_name" "$BASE_URL/$download_name" || installer_error 'Не удалось скачать %s.' 'Download failed: %s.' "$download_name"
+    else
+        installer_error 'Нужен curl или wget, либо локальная установка --from DIR.' 'Install curl or wget, or use an offline --from DIR installation.'
+    fi
+}
+
+file_sha256() {
+    if command -v sha256sum >/dev/null 2>&1; then
+        sha256sum "$1" | awk '{print $1}'
+    elif command -v shasum >/dev/null 2>&1; then
+        shasum -a 256 "$1" | awk '{print $1}'
+    elif command -v sha256 >/dev/null 2>&1; then
+        sha256 -q "$1"
+    else
+        installer_error 'Нужна утилита sha256sum, shasum или sha256.' 'A SHA-256 tool is required: sha256sum, shasum or sha256.'
+    fi
+}
+
+verify_downloads() {
+    for verify_name in clean.sh uninstall.sh anti-monitoring.sh; do
+        expected_hash=$(awk -v name="$verify_name" '$2 == name && NF == 2 {print $1; found++} END {if(found != 1) exit 1}' "$INSTALL_STAGE/SHA256SUMS") || \
+            installer_error 'Некорректный SHA256SUMS: %s.' 'Invalid SHA256SUMS entry: %s.' "$verify_name"
+        case $expected_hash in ''|*[!0-9a-f]*) installer_error 'Некорректная контрольная сумма.' 'Invalid checksum.' ;; esac
+        [ "${#expected_hash}" -eq 64 ] || installer_error 'Некорректная длина SHA-256.' 'Invalid SHA-256 length.'
+        actual_hash=$(file_sha256 "$INSTALL_STAGE/$verify_name") || exit 1
+        [ "$expected_hash" = "$actual_hash" ] || installer_error 'Проверка SHA-256 не пройдена: %s. Повторите скачивание.' 'SHA-256 mismatch: %s. Retry the download.' "$verify_name"
+        sh -n "$INSTALL_STAGE/$verify_name" || installer_error 'Ошибка синтаксиса: %s.' 'Shell syntax check failed: %s.' "$verify_name"
+    done
+    if grep -Fqx '# server-cleaner:managed:clean' "$INSTALL_STAGE/clean.sh" &&
+        grep -Fqx '# server-cleaner:managed:uninstall' "$INSTALL_STAGE/uninstall.sh" &&
+        grep -Fqx '# server-cleaner:managed:agents' "$INSTALL_STAGE/anti-monitoring.sh"; then
         return 0
-    fi
-    
-    # Автоматическое добавление или запрос подтверждения
-    if [ "$AUTO_CRON" = true ]; then
-        (crontab -l 2>/dev/null; echo "0 0 * * * /bin/bash $SCRIPT_PATH >/dev/null 2>&1") | crontab - 2>/dev/null || {
-            log_error "Failed to add to crontab"
-            return 1
-        }
-        log_info "Scheduled daily cleaning at 00:00"
     else
-        echo ""
-        read -p "Schedule automatic cleaning daily at 00:00? (Y/n): " -n 1 -r
-        echo
-        
-        if [[ $REPLY =~ ^[Yy]$ ]] || [[ -z $REPLY ]]; then
-            (crontab -l 2>/dev/null; echo "0 0 * * * /bin/bash $SCRIPT_PATH >/dev/null 2>&1") | crontab - 2>/dev/null || {
-                log_error "Failed to add to crontab"
-                return 1
-            }
-            log_info "Scheduled daily cleaning at 00:00"
+        installer_error 'Некорректный комплект установки.' 'Invalid installation bundle.'
+    fi
+}
+
+check_target() {
+    if [ -L "$1" ]; then installer_error 'Отказ перезаписать ссылку: %s.' 'Refusing to overwrite a symlink: %s.' "$1"; fi
+    if [ -e "$1" ]; then
+        if [ ! -f "$1" ] || ! grep -Fqx "# server-cleaner:managed:$2" "$1"; then
+            installer_error 'Файл не принадлежит Server Cleaner: %s.' 'File is not managed by Server Cleaner: %s.' "$1"
+        fi
+    fi
+}
+
+install_binary() {
+    BIN_STAGE=$(mktemp "$BINDIR/.server-cleaner.XXXXXXXX") || installer_error 'Не удалось создать временный файл в %s.' 'Cannot stage a file in %s.' "$BINDIR"
+    if cp "$INSTALL_STAGE/$1" "$BIN_STAGE" && chmod 755 "$BIN_STAGE" && mv -f "$BIN_STAGE" "$BINDIR/$2"; then
+        BIN_STAGE=''
+    else
+        installer_error 'Не удалось установить %s.' 'Failed to install %s.' "$2"
+    fi
+}
+
+read_install_cron() {
+    if crontab -l > "$1" 2> "$INSTALL_STAGE/cron.error"; then return 0; fi
+    if [ ! -s "$1" ] && grep -Eq '(no crontab for|can.t open .*: No such file or directory)' "$INSTALL_STAGE/cron.error"; then return 0; fi
+    cat "$INSTALL_STAGE/cron.error" >&2
+    installer_error 'Не удалось прочитать crontab; изменения отменены.' 'Cannot read crontab; no cron changes made.'
+}
+
+install_schedule() {
+    read_install_cron "$INSTALL_STAGE/cron.before"
+    SC_CRON_BEGIN="# BEGIN server-cleaner $PREFIX" SC_CRON_END="# END server-cleaner $PREFIX"
+    export SC_CRON_BEGIN SC_CRON_END
+    awk 'BEGIN {begin=ENVIRON["SC_CRON_BEGIN"]; end=ENVIRON["SC_CRON_END"]}
+        $0==begin {if (inside) exit 2; inside=1; next}
+        $0==end {if (!inside) exit 2; inside=0; next}
+        !inside {print}
+        END {if (inside) exit 2}' "$INSTALL_STAGE/cron.before" > "$INSTALL_STAGE/cron.after" ||
+        installer_error 'Повреждён блок Server Cleaner в crontab.' 'Malformed Server Cleaner crontab block.'
+    cron_command=$(printf '%s' "$BINDIR/server-cleaner" | sed "s/'/'\\\\''/g")
+    {
+        printf '%s\n' "$SC_CRON_BEGIN"
+        printf "17 3 * * * PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin /bin/sh '%s' --apply --yes --no-color\n" "$cron_command"
+        printf '%s\n' "$SC_CRON_END"
+    } >> "$INSTALL_STAGE/cron.after"
+    read_install_cron "$INSTALL_STAGE/cron.current"
+    cmp -s "$INSTALL_STAGE/cron.before" "$INSTALL_STAGE/cron.current" ||
+        installer_error 'Crontab изменился параллельно. Повторите установку расписания.' 'Crontab changed concurrently. Retry scheduling.'
+    crontab "$INSTALL_STAGE/cron.after" || installer_error 'Не удалось установить расписание.' 'Failed to install the schedule.'
+    installer_message 'Расписание: ежедневно в 03:17 по времени сервера. Демон cron должен быть запущен.' 'Scheduled daily at 03:17 server time. The cron daemon must be running.'
+}
+
+installer_main() {
+    set -eu
+    case ${LC_ALL:-${LC_MESSAGES:-${LANG:-en}}} in ru*) INSTALL_LANG=ru ;; *) INSTALL_LANG=en ;; esac
+    INSTALL_UID=$(id -u)
+    if [ "$INSTALL_UID" -eq 0 ]; then PREFIX=/usr/local; else PREFIX=${HOME:?HOME is required}/.local; fi
+    SOURCE_DIR='' REF=main SCHEDULE=0 AUTO_RUN=0 MIGRATE=0 INSTALL_YES=0 INSTALL_QUIET=0
+    INSTALL_STAGE='' BIN_STAGE='' INSTALL_LOCKED=0
+    installer_parse "$@"
+    LC_ALL=C
+    export LC_ALL
+    installer_validate
+    INSTALL_STAGE=$(umask 077; mktemp -d "${TMPDIR:-/tmp}/server-cleaner-install.XXXXXXXX")
+    trap 'installer_cleanup' 0
+    trap 'exit 130' INT
+    trap 'exit 143' TERM
+    trap 'exit 129' HUP
+    BASE_URL=https://raw.githubusercontent.com/HVHBIGNAME/server-cleaner/$REF
+    for source_file in SHA256SUMS clean.sh uninstall.sh anti-monitoring.sh; do download_file "$source_file"; done
+    verify_downloads
+    mkdir -p "$PREFIX"
+    PREFIX=$(CDPATH='' cd -P "$PREFIX" && pwd -P)
+    [ "$PREFIX" != / ] || installer_error 'Нельзя устанавливать в /.' 'Cannot install into /.'
+    BINDIR=$PREFIX/bin
+    [ ! -L "$BINDIR" ] || installer_error 'Каталог bin не должен быть ссылкой: %s.' 'bin must not be a symlink: %s.' "$BINDIR"
+    check_target "$BINDIR/server-cleaner" clean
+    check_target "$BINDIR/server-cleaner-uninstall" uninstall
+    check_target "$BINDIR/server-cleaner-agents" agents
+    if [ "$MIGRATE" -eq 1 ]; then
+        if [ "$INSTALL_YES" -eq 1 ]; then
+            sh "$INSTALL_STAGE/uninstall.sh" --legacy --yes
         else
-            log_info "Skipped automatic scheduling"
+            sh "$INSTALL_STAGE/uninstall.sh" --legacy
         fi
+    fi
+    mkdir -p "$BINDIR"
+    INSTALL_LOCK=$BINDIR/.server-cleaner-install-lock
+    mkdir "$INSTALL_LOCK" 2>/dev/null || installer_error 'Установка уже запущена или каталог недоступен: %s.' 'Another installation is running or the directory is not writable: %s.' "$INSTALL_LOCK"
+    INSTALL_LOCKED=1
+    install_binary clean.sh server-cleaner
+    install_binary uninstall.sh server-cleaner-uninstall
+    install_binary anti-monitoring.sh server-cleaner-agents
+    if [ "$SCHEDULE" -eq 1 ]; then install_schedule; fi
+    if [ "$INSTALL_QUIET" -eq 0 ]; then
+        installer_message '\nServer Cleaner установлен: %s\nЗапуск: "%s"\nСправка: "%s" --help' '\nServer Cleaner installed: %s\nRun: "%s"\nHelp: "%s" --help' "$BINDIR" "$BINDIR/server-cleaner" "$BINDIR/server-cleaner"
+        case :$PATH: in
+            *:"$BINDIR":*) ;;
+            *) installer_message 'Добавьте %s в PATH или запускайте по полному пути.' 'Add %s to PATH or run the full path above.' "$BINDIR" ;;
+        esac
+    fi
+    if [ "$AUTO_RUN" -eq 1 ]; then
+        if [ "$INSTALL_YES" -eq 1 ]; then "$BINDIR/server-cleaner" --apply --yes --lang "$INSTALL_LANG";
+        else "$BINDIR/server-cleaner" --apply --lang "$INSTALL_LANG"; fi
     fi
 }
 
-# Проверка установки
-verify_installation() {
-    if [ ! -f "$SCRIPT_PATH" ]; then
-        log_error "Script file not found after installation"
-        return 1
-    fi
-    
-    if [ ! -x "$SCRIPT_PATH" ]; then
-        log_error "Script is not executable"
-        return 1
-    fi
-    
-    log_info "Installation verified"
-    return 0
-}
-
-# Запуск скрипта сейчас
-run_now() {
-    if [ "$AUTO_RUN" = true ]; then
-        log_info "Running cleaning script..."
-        bash "$SCRIPT_PATH" 2>/dev/null || log_warn "Cleanup failed"
-        log_info "Done"
-    elif [ "$SILENT" = false ]; then
-        echo ""
-        read -p "Run cleaning now? (y/n): " -n 1 -r
-        echo
-        
-        if [[ $REPLY =~ ^[Yy]$ ]]; then
-            log_info "Running cleaning script..."
-            bash "$SCRIPT_PATH"
-            log_info "Done"
-        fi
-    fi
-}
-
-# Основная функция
-main() {
-    if [ "$SILENT" = false ]; then
-        echo "======================================"
-        echo "  Server Cleaner Installer v${SCRIPT_VERSION}"
-        echo "======================================"
-        echo ""
-    fi
-    
-    check_root || log_warn "Running without root - some features may not work"
-    
-    log_info "Checking dependencies..."
-    install_dependencies
-    
-    log_info "Setting up installation..."
-    create_directory
-    download_script
-    set_permissions
-    
-    if verify_installation; then
-        log_info "Installation successful!"
-        
-        if [ "$SILENT" = false ]; then
-            echo ""
-            echo "Location: $SCRIPT_PATH"
-            echo "Manual run: bash $SCRIPT_PATH"
-            echo ""
-        fi
-        
-        setup_cron
-        run_now
-        
-        if [ "$SILENT" = false ]; then
-            echo ""
-            log_info "To uninstall: curl -fsSL https://raw.githubusercontent.com/HVHBIGNAME/server-cleaner/main/uninstall.sh | bash"
-        fi
-    else
-        log_error "Installation failed"
-        exit 1
-    fi
-}
-
-main
+installer_main "$@"

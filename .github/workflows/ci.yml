@@ -1,0 +1,123 @@
+name: Portable shell CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  lint:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - name: POSIX syntax and ShellCheck
+        run: |
+          for script in *.sh; do sh -n "$script"; done
+          shellcheck --shell=sh --severity=warning ./*.sh
+
+  linux:
+    name: ${{ matrix.name }}
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      max-parallel: 4
+      matrix:
+        include:
+          - name: Ubuntu 24.04 / dash
+            runner: ubuntu-24.04
+            image: ubuntu:24.04
+            bootstrap: apt-get update -qq && apt-get install -y -qq python3
+            manager: apt-get
+          - name: Ubuntu 24.04 / ARM64
+            runner: ubuntu-24.04-arm
+            image: ubuntu:24.04
+            bootstrap: apt-get update -qq && apt-get install -y -qq python3
+            manager: apt-get
+          - name: Debian 12 / dash
+            runner: ubuntu-24.04
+            image: debian:12-slim
+            bootstrap: apt-get update -qq && apt-get install -y -qq python3
+            manager: apt-get
+          - name: Debian 13 / dash
+            runner: ubuntu-24.04
+            image: debian:13-slim
+            bootstrap: apt-get update -qq && apt-get install -y -qq python3
+            manager: apt-get
+          - name: Alpine 3.22 / BusyBox ash
+            runner: ubuntu-24.04
+            image: alpine:3.22
+            bootstrap: apk add --no-cache python3
+            manager: apk
+          - name: Fedora 43 / bash
+            runner: ubuntu-24.04
+            image: fedora:43
+            bootstrap: dnf -y install python3
+            manager: dnf5,dnf
+          - name: Rocky Linux 9 / bash
+            runner: ubuntu-24.04
+            image: rockylinux:9
+            bootstrap: dnf -y install python3
+            manager: dnf
+          - name: Arch Linux / bash
+            runner: ubuntu-24.04
+            image: archlinux:latest
+            bootstrap: pacman -Syu --noconfirm python
+            manager: pacman
+          - name: openSUSE Leap 16 / bash
+            runner: ubuntu-24.04
+            image: opensuse/leap:16.0
+            bootstrap: zypper --non-interactive install python3
+            manager: zypper
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - name: Regression tests and native package-cache smoke test
+        env:
+          IMAGE: ${{ matrix.image }}
+          BOOTSTRAP: ${{ matrix.bootstrap }}
+          EXPECT_MANAGER: ${{ matrix.manager }}
+        run: |
+          docker run --rm --mount "type=bind,source=$PWD,target=/work,readonly" \
+            --workdir /work --env BOOTSTRAP --env EXPECT_MANAGER \
+            --env PYTHONDONTWRITEBYTECODE=1 "$IMAGE" sh -ec '
+              sh -ec "$BOOTSTRAP"
+              python3 -B -m unittest discover -s tests -v
+              python3 -B tests/smoke_platform.py --expect-manager "$EXPECT_MANAGER" --apply
+            '
+
+  macos:
+    name: macOS / system sh
+    runs-on: macos-14
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
+        with:
+          python-version: '3.12'
+      - run: python3 -B -m unittest discover -s tests -v
+      - name: Native preview
+        run: python3 -B tests/smoke_platform.py --expect-manager brew
+
+  freebsd:
+    name: FreeBSD 14.3 / sh
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: vmactions/freebsd-vm@c46abacb49f09938ca4e1702d15d836285d694cc # v1
+        with:
+          release: '14.3'
+          usesh: true
+          prepare: pkg install -y python311
+          run: |
+            python3.11 -B -m unittest discover -s tests -v
+            python3.11 -B tests/smoke_platform.py --expect-manager pkg --apply
