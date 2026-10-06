@@ -113,7 +113,7 @@ class CleanerTests(ShellTestCase):
             "apt-get": ["apt-get", "clean"],
             "dnf5": ["dnf5", "clean", "packages"],
             "dnf": ["dnf", "clean", "packages"],
-            "microdnf": ["microdnf", "clean", "packages"],
+            "microdnf": ["microdnf", "clean", "all"],
             "yum": ["yum", "clean", "packages"],
             "zypper": ["zypper", "--non-interactive", "clean"],
             "paccache": ["paccache", "-r", "-k", "2"],

@@ -333,7 +333,8 @@ task_packages() {
     package_description=$(text packages "$PM")
     case $PM in
         apt-get) perform packages true "$package_description" apt-get clean ;;
-        dnf5|dnf|microdnf|yum) perform packages true "$package_description" "$PM" clean packages ;;
+        dnf5|dnf|yum) perform packages true "$package_description" "$PM" clean packages ;;
+        microdnf) perform packages true "$package_description" microdnf clean all ;;
         zypper) perform packages true "$package_description" zypper --non-interactive clean ;;
         paccache) perform packages true "$package_description" paccache -r -k 2 ;;
         pacman) perform packages true "$package_description" pacman --sync --clean --noconfirm ;;

@@ -2,12 +2,11 @@
 
 import hashlib
 import os
-from pathlib import Path
 import shutil
 import subprocess
 import tempfile
 import unittest
-
+from pathlib import Path
 
 REPO = Path(__file__).resolve().parents[1]
 SHELL = os.environ.get("SHELL_UNDER_TEST", "/bin/sh")
@@ -29,7 +28,7 @@ class ShellTestCase(unittest.TestCase):
         self.home.mkdir(mode=0o700)
         for name in (
             "awk", "tr", "stat", "rm", "mkdir", "rmdir", "chmod", "cp", "mv",
-            "mktemp", "grep", "sed", "cmp", "cat", "dirname", "env", "sleep",
+            "mktemp", "grep", "sed", "cat", "dirname", "env", "sleep",
             "sha256sum", "shasum", "sha256",
         ):
             executable = shutil.which(name)

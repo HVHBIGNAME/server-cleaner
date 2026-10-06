@@ -40,6 +40,14 @@ EOF
             *) printf 'Unknown option: %s. This tool is read-only; see --help.\n' "$agent_arg" >&2; return 2 ;;
         esac
     done
+    query_tool=''
+    for query_candidate in dpkg-query rpm apk pacman pkg; do
+        if command -v "$query_candidate" >/dev/null 2>&1; then query_tool=$query_candidate; break; fi
+    done
+    if [ -z "$query_tool" ]; then
+        printf 'No supported package database / Нет поддерживаемой базы пакетов.\n' >&2
+        return 3
+    fi
     printf 'Server Cleaner / guest & cloud integrations\nRead-only inventory / Только чтение\n\n'
     agents_found=0
     for agent_package in \

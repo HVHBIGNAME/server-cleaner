@@ -174,6 +174,12 @@ read_install_cron() {
     installer_error 'Не удалось прочитать crontab; изменения отменены.' 'Cannot read crontab; no cron changes made.'
 }
 
+same_crontab() {
+    cron_left=$(cat "$1" && printf '.') || return 1
+    cron_right=$(cat "$2" && printf '.') || return 1
+    [ "$cron_left" = "$cron_right" ]
+}
+
 install_schedule() {
     read_install_cron "$INSTALL_STAGE/cron.before"
     SC_CRON_BEGIN="# BEGIN server-cleaner $PREFIX" SC_CRON_END="# END server-cleaner $PREFIX"
@@ -187,11 +193,11 @@ install_schedule() {
     cron_command=$(printf '%s' "$BINDIR/server-cleaner" | sed "s/'/'\\\\''/g")
     {
         printf '%s\n' "$SC_CRON_BEGIN"
-        printf "17 3 * * * PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin /bin/sh '%s' --apply --yes --no-color\n" "$cron_command"
+        printf "17 3 * * * /usr/bin/env PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin /bin/sh '%s' --apply --yes --no-color\n" "$cron_command"
         printf '%s\n' "$SC_CRON_END"
     } >> "$INSTALL_STAGE/cron.after"
     read_install_cron "$INSTALL_STAGE/cron.current"
-    cmp -s "$INSTALL_STAGE/cron.before" "$INSTALL_STAGE/cron.current" ||
+    same_crontab "$INSTALL_STAGE/cron.before" "$INSTALL_STAGE/cron.current" ||
         installer_error 'Crontab изменился параллельно. Повторите установку расписания.' 'Crontab changed concurrently. Retry scheduling.'
     crontab "$INSTALL_STAGE/cron.after" || installer_error 'Не удалось установить расписание.' 'Failed to install the schedule.'
     installer_message 'Расписание: ежедневно в 03:17 по времени сервера. Демон cron должен быть запущен.' 'Scheduled daily at 03:17 server time. The cron daemon must be running.'
@@ -224,13 +230,6 @@ installer_main() {
     check_target "$BINDIR/server-cleaner" clean
     check_target "$BINDIR/server-cleaner-uninstall" uninstall
     check_target "$BINDIR/server-cleaner-agents" agents
-    if [ "$MIGRATE" -eq 1 ]; then
-        if [ "$INSTALL_YES" -eq 1 ]; then
-            sh "$INSTALL_STAGE/uninstall.sh" --legacy --yes
-        else
-            sh "$INSTALL_STAGE/uninstall.sh" --legacy
-        fi
-    fi
     mkdir -p "$BINDIR"
     INSTALL_LOCK=$BINDIR/.server-cleaner-install-lock
     mkdir "$INSTALL_LOCK" 2>/dev/null || installer_error 'Установка уже запущена или каталог недоступен: %s.' 'Another installation is running or the directory is not writable: %s.' "$INSTALL_LOCK"
@@ -238,6 +237,13 @@ installer_main() {
     install_binary clean.sh server-cleaner
     install_binary uninstall.sh server-cleaner-uninstall
     install_binary anti-monitoring.sh server-cleaner-agents
+    if [ "$MIGRATE" -eq 1 ]; then
+        if [ "$INSTALL_YES" -eq 1 ]; then
+            sh "$INSTALL_STAGE/uninstall.sh" --legacy --yes
+        else
+            sh "$INSTALL_STAGE/uninstall.sh" --legacy
+        fi
+    fi
     if [ "$SCHEDULE" -eq 1 ]; then install_schedule; fi
     if [ "$INSTALL_QUIET" -eq 0 ]; then
         installer_message '\nServer Cleaner установлен: %s\nЗапуск: "%s"\nСправка: "%s" --help' '\nServer Cleaner installed: %s\nRun: "%s"\nHelp: "%s" --help' "$BINDIR" "$BINDIR/server-cleaner" "$BINDIR/server-cleaner"

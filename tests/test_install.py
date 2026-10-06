@@ -208,6 +208,80 @@ class InstallTests(ShellTestCase):
                 result = self.run_script("install.sh", "--from", source, "--prefix", prefix)
                 self.assertNotEqual(result.returncode, 0)
 
+    def test_remote_install_uses_the_selected_ref(self):
+        source = self.bundle()
+        self.env["DOWNLOAD_SOURCE"] = str(source)
+        self.command("curl", '''
+url='' destination=''
+while [ "$#" -gt 0 ]; do
+    case $1 in
+        https://*) url=$1 ;;
+        -o) destination=$2; shift ;;
+    esac
+    shift
+done
+printf '%s\n' "$url" >> "$CALL_LOG"
+cp "$DOWNLOAD_SOURCE/${url##*/}" "$destination"
+''')
+        result = self.run_script("install.sh", "--prefix", self.prefix, "--ref", "v2-test")
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(len(self.calls()), 4)
+        for call in self.calls():
+            self.assertIn("/server-cleaner/v2-test/", call[0])
+        self.assertEqual((self.prefix / "bin" / "server-cleaner").read_bytes(), (source / "clean.sh").read_bytes())
+
+    def test_wget_works_without_curl(self):
+        source = self.bundle()
+        self.env["DOWNLOAD_SOURCE"] = str(source)
+        self.command("wget", '''
+destination='' url=''
+while [ "$#" -gt 0 ]; do
+    case $1 in
+        -O) destination=$2; shift ;;
+        https://*) url=$1 ;;
+    esac
+    shift
+done
+cp "$DOWNLOAD_SOURCE/${url##*/}" "$destination"
+''')
+        result = self.run_script("install.sh", "--prefix", self.prefix)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertTrue((self.prefix / "bin" / "server-cleaner").is_file())
+
+    def test_remote_network_failure_preserves_installed_command(self):
+        self.assertEqual(self.install().returncode, 0)
+        installed = self.prefix / "bin" / "server-cleaner"
+        before = installed.read_bytes()
+        self.command("curl", "exit 22")
+        result = self.run_script("install.sh", "--prefix", self.prefix)
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("Download failed", result.stderr)
+        self.assertEqual(installed.read_bytes(), before)
+
+    def test_cron_concurrent_change_is_preserved(self):
+        self.as_root()
+        self.cron_store.write_text("0 1 * * * original-job\n")
+        self.command("crontab", '''
+if [ "$1" = -l ]; then
+    cat "$CRON_STORE"
+    if [ ! -f "$CRON_STORE.read" ]; then
+        printf '5 2 * * * concurrent-job\n' >> "$CRON_STORE"
+        : > "$CRON_STORE.read"
+    fi
+else
+    cp "$1" "$CRON_STORE"
+fi
+''')
+        result = self.install("--schedule", "daily")
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("changed concurrently", result.stderr)
+        self.assertEqual(self.cron_store.read_text(), "0 1 * * * original-job\n5 2 * * * concurrent-job\n")
+
+    def test_agents_report_a_missing_query_tool(self):
+        result = self.run_script("anti-monitoring.sh")
+        self.assertEqual(result.returncode, 3)
+        self.assertIn("No supported package database", result.stderr)
+
     def test_agents_check_exact_packages_without_mutating(self):
         self.command("dpkg-query", '''
 case "$3" in

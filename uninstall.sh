@@ -56,6 +56,12 @@ read_uninstall_cron() {
     uninstall_error 'Cannot read crontab; installation kept.'
 }
 
+same_crontab() {
+    cron_left=$(cat "$1" && printf '.') || return 1
+    cron_right=$(cat "$2" && printf '.') || return 1
+    [ "$cron_left" = "$cron_right" ]
+}
+
 remove_schedule() {
     command -v crontab >/dev/null 2>&1 || return 0
     read_uninstall_cron "$UNINSTALL_STAGE/cron.before"
@@ -74,9 +80,9 @@ remove_schedule() {
             END {if (inside) exit 2}' "$UNINSTALL_STAGE/cron.before" > "$UNINSTALL_STAGE/cron.after" ||
             uninstall_error 'Malformed Server Cleaner cron block; installation kept.'
     fi
-    if cmp -s "$UNINSTALL_STAGE/cron.before" "$UNINSTALL_STAGE/cron.after"; then return 0; fi
+    if same_crontab "$UNINSTALL_STAGE/cron.before" "$UNINSTALL_STAGE/cron.after"; then return 0; fi
     read_uninstall_cron "$UNINSTALL_STAGE/cron.current"
-    cmp -s "$UNINSTALL_STAGE/cron.before" "$UNINSTALL_STAGE/cron.current" || uninstall_error 'Crontab changed concurrently; retry uninstalling.'
+    same_crontab "$UNINSTALL_STAGE/cron.before" "$UNINSTALL_STAGE/cron.current" || uninstall_error 'Crontab changed concurrently; retry uninstalling.'
     crontab "$UNINSTALL_STAGE/cron.after" || uninstall_error 'Cannot remove cron job; installation kept.'
 }
 
