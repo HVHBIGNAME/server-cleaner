@@ -1,0 +1,22 @@
+{
+  "schema_version": 1,
+  "version": "2.0.0",
+  "mode": "apply",
+  "platform": "Linux",
+  "package_manager": "apt-get",
+  "keep_days": 14,
+  "tasks": [
+    {"id": "packages", "status": "completed", "detail": "Illustrative example", "requires_root": true, "command": ["apt-get", "clean"]},
+    {"id": "journal", "status": "completed", "detail": "Illustrative example", "requires_root": true, "command": ["journalctl", "--vacuum-time=14d"]},
+    {"id": "temp", "status": "completed", "detail": "Illustrative example", "requires_root": true, "command": ["systemd-tmpfiles", "--clean", "--prefix=/tmp", "--prefix=/var/tmp"]},
+    {"id": "logs", "status": "skipped", "detail": "Rotation tool unavailable", "requires_root": false, "command": []},
+    {"id": "coredumps", "status": "completed", "detail": "Illustrative example", "requires_root": true, "command": ["systemd-tmpfiles", "--clean", "--prefix=/var/lib/systemd/coredump"]}
+  ],
+  "summary": {"completed": 4, "planned": 0, "skipped": 1, "failed": 0},
+  "disk": {
+    "path": "/",
+    "before": {"size_kib": 104857600, "used_kib": 84934656, "available_kib": 17825792},
+    "after": {"size_kib": 104857600, "used_kib": 81264640, "available_kib": 21495808},
+    "available_delta_kib": 3670016
+  }
+}

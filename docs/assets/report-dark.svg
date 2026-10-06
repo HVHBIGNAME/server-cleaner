@@ -1,0 +1,41 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1100" height="570" viewBox="0 0 1100 570" role="img" aria-labelledby="title desc">
+<title id="title">EXAMPLE DATA / NOT A BENCHMARK</title>
+<desc id="desc">Filesystem capacity before and after a maintenance run, with task outcomes. Available-space changes include concurrent writes and are not an attribution of reclaimed bytes.</desc>
+<style>text{font-family:Arial,Helvetica,sans-serif}.mono{font-family:Courier New,Courier,monospace}</style>
+<rect x="0.5" y="0.5" width="1099" height="569" rx="18" fill="#101310" stroke="#30392c"/>
+<path d="M32 78H1068M32 492H1068" stroke="#30392c"/>
+<text x="44" y="49" font-size="18" font-weight="700" fill="#f0f2e8" >EXAMPLE DATA / NOT A BENCHMARK</text>
+<text x="1056" y="49" font-size="13" font-weight="400" fill="#d2ff5a" text-anchor="end" class="mono">APPLY</text>
+<text x="42" y="151" font-size="50" font-weight="800" fill="#f0f2e8" >Capacity, with context.</text>
+<text x="44" y="184" font-size="16" font-weight="400" fill="#a1ad9b" >Filesystem: /  /  5 selected tasks</text>
+<path d="M752 215V462" stroke="#30392c"/>
+<text x="44" y="237" font-size="13" font-weight="400" fill="#a1ad9b" class="mono">BEFORE</text>
+<rect x="44" y="255" width="650" height="28" rx="4" fill="#30392c"/>
+<rect x="44" y="255" width="526.50" height="28" fill="#d2ff5a"/>
+<rect x="570.50" y="255" width="110.50" height="28" fill="#344620"/>
+<text x="44" y="312" font-size="16" font-weight="400" fill="#f0f2e8" >81.00 GiB used  /  17.00 GiB available</text>
+<text x="44" y="353" font-size="13" font-weight="400" fill="#a1ad9b" class="mono">AFTER</text>
+<rect x="44" y="371" width="650" height="28" rx="4" fill="#30392c"/>
+<rect x="44" y="371" width="503.75" height="28" fill="#d2ff5a"/>
+<rect x="547.75" y="371" width="133.25" height="28" fill="#344620"/>
+<text x="44" y="428" font-size="16" font-weight="400" fill="#f0f2e8" >77.50 GiB used  /  20.50 GiB available</text>
+<text x="800" y="241" font-size="12" font-weight="400" fill="#a1ad9b" class="mono">COMPLETED</text>
+<text x="1056" y="241" font-size="24" font-weight="700" fill="#d2ff5a" text-anchor="end">4</text>
+<rect x="800" y="252" width="256" height="4" fill="#30392c"/>
+<rect x="800" y="252" width="204.80" height="4" fill="#d2ff5a"/>
+<text x="800" y="297" font-size="12" font-weight="400" fill="#a1ad9b" class="mono">PLANNED</text>
+<text x="1056" y="297" font-size="24" font-weight="700" fill="#a1ad9b" text-anchor="end">0</text>
+<rect x="800" y="308" width="256" height="4" fill="#30392c"/>
+<rect x="800" y="308" width="0.00" height="4" fill="#a1ad9b"/>
+<text x="800" y="353" font-size="12" font-weight="400" fill="#a1ad9b" class="mono">SKIPPED</text>
+<text x="1056" y="353" font-size="24" font-weight="700" fill="#a1ad9b" text-anchor="end">1</text>
+<rect x="800" y="364" width="256" height="4" fill="#30392c"/>
+<rect x="800" y="364" width="51.20" height="4" fill="#a1ad9b"/>
+<text x="800" y="409" font-size="12" font-weight="400" fill="#a1ad9b" class="mono">FAILED</text>
+<text x="1056" y="409" font-size="24" font-weight="700" fill="#ff9685" text-anchor="end">0</text>
+<rect x="800" y="420" width="256" height="4" fill="#30392c"/>
+<rect x="800" y="420" width="0.00" height="4" fill="#ff9685"/>
+<text x="44" y="525" font-size="17" font-weight="700" fill="#d2ff5a" >Available-space change: +3.50 GiB</text>
+<text x="44" y="550" font-size="12" font-weight="400" fill="#a1ad9b" >Root filesystem only. Includes other processes; not a reclaimed-space estimate.</text>
+<text x="1056" y="525" font-size="12" font-weight="400" fill="#a1ad9b" text-anchor="end" class="mono">HVHBIGNAME / 02</text>
+</svg>
