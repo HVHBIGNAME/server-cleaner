@@ -60,6 +60,10 @@ text() {
         *:history) text_format='Saved history files of the current user; open shells keep their in-memory history.' ;;
         ru:no_history) text_format='Сохранённых файлов истории не найдено.' ;;
         *:no_history) text_format='No saved history files found.' ;;
+        ru:history_live) text_format='Активные оболочки держат историю в памяти и перезапишут файл при выходе. Выполните history -c в каждой оболочке или выйдите из них.' ;;
+        *:history_live) text_format='Active shells keep history in memory and rewrite the file on exit. Run history -c in each shell or log out.' ;;
+        ru:cron_stopped) text_format='Задание добавлено, но служба cron не запущена; автозапуск не сработает, пока cron не будет запущен.' ;;
+        *:cron_stopped) text_format='Job installed, but the cron daemon is not running; autostart will not run until cron is started.' ;;
         ru:unsafe_home) text_format='HOME должен быть собственным приватным каталогом текущего пользователя.' ;;
         *:unsafe_home) text_format='HOME must be a private directory owned by the current user.' ;;
         ru:unsafe_path) text_format='Небезопасный путь (ссылка, чужой владелец или общий доступ): %s.' ;;
@@ -128,9 +132,11 @@ Server Cleaner — обслуживание Linux, macOS и BSD
   --version          Версия
 
 Стандартные: packages, journal, temp, logs, coredumps.
-Только по запросу: docker (кеш сборки), history (сохранённая история своего пользователя).
+Только по запросу: docker (кеш сборки), history (сохранённая история своего пользователя;
+открытые оболочки нужно очистить командой history -c).
 Временные файлы и дампы очищаются по правилам ОС, логи — по конфигурации ротации.
-Автозапуск использует cron и сохраняет --only, --keep-days, --lang и --quiet.
+Автозапуск использует cron и сохраняет --only, --keep-days, --lang и --quiet;
+если служба cron не запущена, выводится предупреждение.
 --install можно совместить с --autostart и --apply; без --apply очистка сразу не запускается.
 
 Пример: server-cleaner --autostart daily --at 04:00 --only packages,journal --keep-days 30
@@ -171,9 +177,10 @@ General:
   --version          Version
 
 Default: packages, journal, temp, logs, coredumps.
-Opt-in: docker (build cache), history (your own saved history files).
+Opt-in: docker (build cache), history (your own saved history files; run history -c in open shells).
 Temporary files / core dumps follow OS age policies; logs follow rotation config.
-Autostart uses cron and preserves --only, --keep-days, --lang and --quiet.
+Autostart uses cron and preserves --only, --keep-days, --lang and --quiet;
+if the cron daemon is not running, a warning is printed.
 Combine --install with --autostart and --apply; cleanup only runs now with --apply.
 
 Example: server-cleaner --autostart daily --at 04:00 --only packages,journal --keep-days 30
@@ -528,7 +535,11 @@ task_history() {
     if [ "$#" -eq 0 ]; then
         skip history "$(text no_history)"
     else
+        history_completed_before=$COMPLETED
         perform history false "$(text history)" rm -f "$@"
+        if [ "$MODE" = apply ] && [ "$QUIET" -eq 0 ] && [ "$COMPLETED" -gt "$history_completed_before" ] && [ -t 2 ]; then
+            printf '%s\n' "$(text history_live)" >&2
+        fi
     fi
 }
 
@@ -729,6 +740,14 @@ write_cron() {
 
 shell_quote() { printf "'%s'" "$(printf '%s' "$1" | sed "s/'/'\\\\''/g")"; }
 
+cron_daemon_inactive() {
+    [ -d /run/systemd/system ] || return 1
+    has systemctl || return 1
+    systemctl is-active --quiet cron 2>/dev/null && return 1
+    systemctl is-active --quiet crond 2>/dev/null && return 1
+    return 0
+}
+
 preflight_autostart() (
     has crontab || fail "$(text missing crontab)"
     resolve_home || fail "$(text unsafe_home)"
@@ -789,6 +808,9 @@ configure_autostart() {
         } >> "$MANAGE_DIR/cron.after"
     fi
     write_cron
+    if [ "$AUTOSTART" != off ] && [ "$QUIET" -eq 0 ] && [ -t 2 ] && cron_daemon_inactive; then
+        printf '%s\n' "$(text cron_stopped)" >&2
+    fi
     if [ "$QUIET" -eq 0 ]; then management_message 'Автозапуск: %s. Состояние: --autostart status.' 'Autostart: %s. Inspect with --autostart status.' "$AUTOSTART"; fi
 }
 

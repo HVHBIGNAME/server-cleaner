@@ -24,6 +24,7 @@ server-cleaner --apply --yes --only packages,journal --keep-days 30
 ```
 
 System tasks require root. Running without arguments opens a menu.
+`history` and `docker` are opt-in. Open shells keep history in memory and rewrite the file on exit: run `history -c` or log out.
 
 ## Autostart
 
@@ -33,7 +34,7 @@ server-cleaner --autostart status      # Inspect the schedule
 server-cleaner --autostart off         # Disable it
 ```
 
-Modes: `daily`, `weekly`, `boot`, `off`, `status`. A running cron daemon is required.
+Modes: `daily`, `weekly`, `boot`, `off`, `status`. A running cron daemon is required; the program warns when cron is not running.
 The job preserves your selected tasks, retention and language.
 Combine these flags with `--install` to set everything up in one command.
 

@@ -307,6 +307,8 @@ esac
                 self.assertEqual(result.returncode, 0)
                 for option in ("--install", "--update", "--uninstall", "--autostart", "--at", "--only", "--keep-days", "--agents", "--help"):
                     self.assertIn(option, result.stdout)
+                self.assertIn("history -c", result.stdout)
+                self.assertIn("cron", result.stdout)
 
     def test_invalid_management_flags_do_not_install_or_schedule(self):
         self.cron()

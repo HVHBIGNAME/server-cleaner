@@ -25,6 +25,8 @@
 - Idempotent, marked cron configuration with concurrent-change checks and reversible uninstallation.
 - Daily, weekly and boot autostart with `--at`, task / retention / language persistence,
   and status / disable flags on the same command.
+- Warnings when cron is installed but not running, and when cleaned history files may be
+  rewritten by open shells.
 - Dependency-free SVG report renderer, profile-style graphics and English documentation.
 - Regression tests and Linux / ARM64 / macOS / FreeBSD CI.
 - MIT license file matching the previously documented license.
@@ -36,3 +38,5 @@ This removes the recognized v1 script and its exact original cron line. Custom c
 must be reviewed manually. Add `--autostart daily` explicitly to schedule v2 maintenance.
 
 Do not source `server-cleaner.sh`: a child process cannot clear an interactive parent's in-memory history.
+After `--only history`, run `history -c` in each open shell or log out; otherwise that shell
+rewrites its saved history file on exit. Schedule history cleanup with `--autostart boot` when possible.
