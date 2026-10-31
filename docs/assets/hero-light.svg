@@ -1,0 +1,48 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="460" viewBox="0 0 1200 460" role="img" aria-labelledby="title desc">
+  <title id="title">Server Cleaner — Less clutter. More control.</title>
+  <desc id="desc">Инструмент обслуживания Linux, macOS и BSD. Предварительный просмотр, штатные инструменты системы, понятный отчёт.</desc>
+  <defs>
+    <pattern id="grid" width="28" height="28" patternUnits="userSpaceOnUse"><path d="M28 0H0V28" fill="none" stroke="#cdd3c0" stroke-width=".6"/></pattern>
+    <radialGradient id="glow"><stop stop-color="#496817" stop-opacity=".13"/><stop offset="1" stop-color="#496817" stop-opacity="0"/></radialGradient>
+  </defs>
+  <style>
+    text{font-family:Arial,Helvetica,sans-serif}.mono{font-family:'Courier New',Courier,monospace}.mobile{display:none}.led{animation:pulse 4s ease-in-out infinite}
+    @keyframes pulse{50%{opacity:.35}}@media(prefers-reduced-motion:reduce){.led{animation:none}}@media(max-width:600px){.desktop{display:none}.mobile{display:inline}}
+  </style>
+  <rect x=".5" y=".5" width="1199" height="459" rx="18" fill="#f3f2e9" stroke="#cdd3c0"/>
+  <g class="desktop">
+    <path d="M32 76H1168M32 392H1168" stroke="#cdd3c0"/>
+    <path d="M44 29v24m10-24v24m-10-12h10m14-12 9 24 9-24" fill="none" stroke="#496817" stroke-width="3"/>
+    <text x="105" y="49" font-size="20" font-weight="700" fill="#20271b" letter-spacing="2">SERVER CLEANER</text>
+    <text x="1156" y="46" font-size="12" fill="#616d55" class="mono" text-anchor="end">HVHBIGNAME / SYSTEM TOOLS / 02</text>
+    <text x="44" y="125" font-size="13" fill="#616d55" class="mono" letter-spacing="2">SMALL SCRIPT. CLEAR INTENT.</text>
+    <text x="38" y="231" font-size="88" fill="#20271b" font-weight="900" letter-spacing="-5" textLength="653" lengthAdjust="spacingAndGlyphs">LESS CLUTTER.</text>
+    <text x="40" y="322" font-size="77" fill="#496817" font-weight="900" letter-spacing="-4" textLength="675" lengthAdjust="spacingAndGlyphs">MORE CONTROL.</text>
+    <rect x="757" y="94" width="405" height="280" fill="url(#grid)" opacity=".5"/>
+    <circle cx="951" cy="232" r="176" fill="url(#glow)"/>
+    <g transform="translate(828 124)">
+      <path d="M-28 33V4H0M265 4h28v29M-28 183v29H0M265 212h28v-29" fill="none" stroke="#616d55"/>
+      <rect width="265" height="64" rx="7" fill="#e9ebdf" stroke="#496817"/>
+      <circle cx="23" cy="22" r="4" fill="#496817" class="led"/><text x="40" y="26" font-size="11" fill="#20271b" class="mono">01 / INSPECT</text>
+      <path d="M23 45H242" stroke="#cdd3c0" stroke-width="5"/><path d="M23 45H183" stroke="#496817" stroke-width="5"/>
+      <path d="M133 65v12" stroke="#496817"/>
+      <rect y="76" width="265" height="64" rx="7" fill="#e9ebdf" stroke="#496817"/>
+      <circle cx="23" cy="98" r="4" fill="#496817"/><text x="40" y="102" font-size="11" fill="#20271b" class="mono">02 / MAINTAIN</text>
+      <path d="M23 121H242" stroke="#cdd3c0" stroke-width="5"/><path d="M23 121H132" stroke="#496817" stroke-width="5"/>
+      <path d="M133 141v12" stroke="#496817"/>
+      <rect y="152" width="265" height="64" rx="7" fill="#dce8bd" stroke="#496817"/>
+      <text x="23" y="178" font-size="11" fill="#20271b" class="mono">03 / KNOW THE RESULT</text>
+      <text x="23" y="201" font-size="11" fill="#496817" class="mono">TERMINAL + JSON + SVG</text>
+    </g>
+    <circle cx="49" cy="427" r="4" fill="#496817"/>
+    <text x="64" y="432" font-size="13" fill="#20271b" class="mono">PREVIEW → CHOOSE → CLEAN → REPORT</text>
+    <text x="1156" y="432" font-size="12" fill="#616d55" class="mono" text-anchor="end">LINUX / macOS / BSD</text>
+  </g>
+  <g class="mobile">
+    <text x="48" y="79" font-size="40" font-weight="700" letter-spacing="3" fill="#616d55">HVHBIGNAME / SERVER CLEANER</text>
+    <path d="M44 112H1156" stroke="#cdd3c0"/>
+    <text x="37" y="252" font-size="127" fill="#20271b" font-weight="900" letter-spacing="-5" textLength="1090" lengthAdjust="spacingAndGlyphs">LESS CLUTTER.</text>
+    <text x="39" y="386" font-size="118" fill="#496817" font-weight="900" letter-spacing="-5" textLength="1105" lengthAdjust="spacingAndGlyphs">MORE CONTROL.</text>
+    <text x="48" y="437" font-size="27" fill="#616d55" class="mono">PREVIEW → CLEAN → REPORT</text>
+  </g>
+</svg>
